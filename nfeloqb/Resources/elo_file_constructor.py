@@ -109,9 +109,9 @@ class EloConstructor():
         qb_value = self.qb_model.get_qb_value(row)
         ## return the value ##
         return qb_value
-    
-    def add_starters(self):
-        ## add starters and values to the new games ##
+        
+    def add_starters_and_team_values(self):
+        ## add starters and team values to the new games ##
         ## this also needs to handle season over season regressions ##
         ## update starters ##
         self.at_wrapper.pull_current_starters()
@@ -123,57 +123,45 @@ class EloConstructor():
             starter_dict[row['team']]['qb_name'] = row['player_display_name']
             starter_dict[row['team']]['draft_number'] = row['draft_number']
         ## helper func to apply to new games ##
-        def apply_starters(row, starter_dict):
+        def apply_starters_and_team_values(row, starter_dict):
             ## home ##
             row['qb1_id'] = starter_dict[row['home_team']]['qb_id']
             row['qb1'] = starter_dict[row['home_team']]['qb_name']
-            row['qb1_value_pre'] = self.extract_starter_values(
-                row['qb1_id'], row['season'], row['home_team'],
-                starter_dict[row['home_team']]['draft_number'], row['gameday']
-            )
+            qb1, team1, opponent1 = self.qb_model.get_objects({
+                'player_id' : row['qb1_id'],
+                'player_display_name' : row['qb1'],
+                'team' : row['home_team'],
+                'opponent' : row['away_team'],
+                'season' : row['season'],
+                'draft_number' : starter_dict[row['home_team']]['draft_number'],
+                'gameday' : row['gameday']
+            })
+            row['qb1_value_pre'] = qb1.current_value
+            row['qb1_adj'] = qb1.current_value - team1.off_value
             row['qb1_game_value'] = numpy.nan
             row['qb1_value_post'] = numpy.nan
-            ## away ##
+            ## away ##  
             row['qb2_id'] = starter_dict[row['away_team']]['qb_id']
             row['qb2'] = starter_dict[row['away_team']]['qb_name']
-            row['qb2_value_pre'] = self.extract_starter_values(
-                row['qb2_id'], row['season'], row['away_team'],
-                starter_dict[row['away_team']]['draft_number'], row['gameday']
-            )
+            qb2, team2, opponent2 = self.qb_model.get_objects({
+                'player_id' : row['qb2_id'],
+                'player_display_name' : row['qb2'],
+                'team' : row['away_team'],
+                'opponent' : row['home_team'],
+                'season' : row['season'],
+                'draft_number' : starter_dict[row['away_team']]['draft_number'],
+                'gameday' : row['gameday']
+            })
+            row['qb2_value_pre'] = qb2.current_value
+            row['qb2_adj'] = qb2.current_value - team2.off_value
             row['qb2_game_value'] = numpy.nan
             row['qb2_value_post'] = numpy.nan
             ## return ##
             return row
         ## apply ##
         self.next_games = self.next_games.apply(
-            apply_starters,
+            apply_starters_and_team_values,
             starter_dict=starter_dict,
-            axis=1
-        )
-    
-    def add_team_values(self):
-        ## once next week has been updated with starter values, add team values ##
-        ## and make adjustments ##
-        ## first set the models current week to the week of next games ##
-        self.qb_model.current_week = self.next_games.iloc[0]['week']
-        ## helper to add team values ##
-        def apply_team_values(row):
-            ## home ##
-            home_val, home_adj = self.qb_model.get_team_off_value(
-                row['home_team'], row['qb1_value_pre'], row['season']
-            )
-            ## away ##
-            away_val, away_adj = self.qb_model.get_team_off_value(
-                row['away_team'], row['qb2_value_pre'], row['season']
-            )
-            ## add adjs to row ##
-            row['qb1_adj'] = home_adj
-            row['qb2_adj'] = away_adj
-            ## return ##
-            return row
-        ## apply ##
-        self.next_games = self.next_games.apply(
-            apply_team_values,
             axis=1
         )
     
@@ -241,7 +229,6 @@ class EloConstructor():
                 axis=1
             )
     
-    
     def merge_new_and_next(self):
         ## merge new games and next games with logic to handle blanks ##
         if self.new_games is None:
@@ -255,7 +242,17 @@ class EloConstructor():
                 self.new_file_games = self.new_games
             else:
                 ## merge ##
-                ## align columns ##
+                ## next games has some columns that are all NA because they ahve occured yet ##
+                ## as a result, there is no gaurantee their dtype will match the same col
+                ## in new games. To avoid any warnings, and ensure a proper concat, set explicitly ##
+                self.next_games=self.next_games.astype(
+                    ## by only passing new game dtypes, it also filters next games
+                    ## to the correct columns
+                    ## note: we dont ensure that the dtypes work for the all nan fields (ie ints wont cast)
+                    ## and we dont check to make sure all of new_games columns are in next_games, because this
+                    ## should never occur, and we would therefore want it throw an error
+                    self.new_games.dtypes
+                )
                 self.new_file_games = pd.concat([
                     self.new_games,
                     self.next_games[
@@ -335,6 +332,115 @@ class EloConstructor():
             ])
             self.new_file = self.new_file.reset_index(drop=True)
     
+    def add_game_id_and_week(self):
+        '''
+        Adds fields like week, and game id for easier joins down the road 
+        '''
+        ## replace team names ##
+        repl = {
+            'WSH' : 'WAS'
+        }
+        self.new_file['team1'] = self.new_file['team1'].replace(repl)
+        self.new_file['team2'] = self.new_file['team2'].replace(repl)
+        ## aling playoff nominclature to fastr ##
+        self.new_file['game_type'] = numpy.where(
+            pd.isnull(self.new_file['playoff']),
+            'REG', 'POST'
+        )
+        self.games['game_type'] = numpy.where(
+            numpy.isin(
+                self.games['game_type'],
+                ['WC', 'DIV', 'CON', 'SB']
+            ),
+            'POST',
+            self.games['game_type']
+        )
+        ## manually swap home and away teams in instances where ##
+        ## neutrals create a bad record ##
+        swaps = [
+            ## (date, home, away)
+            ('2000-01-30', 'LAR', 'TEN'),
+            ('2001-01-28', 'BAL', 'NYG'),
+            ('2002-02-03', 'LAR', 'NE'),
+            ('2003-10-27', 'MIA', 'LAC'),
+            ('2005-09-19', 'NYG', 'NO'),
+            ('2005-10-02', 'BUF', 'NO'),
+            ## sneaky ones that will map, but create dupes! ##
+            ('2005-10-02', 'SF', 'ARI'),
+            ('2005-10-16', 'ATL', 'NO'),
+            ('2005-12-24', 'DET', 'NO'),
+            ('2006-02-05', 'SEA', 'PIT'),
+            ('2007-10-28', 'NYG', 'MIA'),
+            ('2007-02-04', 'IND', 'CHI'),
+            ('2008-02-03', 'NYG', 'NE'),
+            ('2008-10-26', 'LAC', 'NO'),
+            ('2009-02-01', 'PIT', 'ARI'),
+            ('2009-10-25', 'NE', 'TB'),
+            ('2010-02-07', 'NO', 'IND'),
+            ('2010-10-31', 'DEN', 'SF'),
+            ('2010-12-13', 'NYG', 'MIN'),
+            ('2011-02-06', 'PIT', 'GB'),
+            ('2011-10-23', 'CHI', 'TB'),
+            ('2012-02-05', 'NYG', 'NE'),
+            ('2012-10-28', 'NE', 'LAR'),
+            ('2013-02-03', 'BAL', 'SF'),
+            ('2013-09-29', 'PIT', 'MIN'),
+            ('2013-10-27', 'SF', 'JAX'),
+            ('2014-09-28', 'MIA', 'OAK'),
+            ('2014-10-26', 'DET', 'ATL'),
+            ('2014-11-09', 'DAL', 'JAX'),
+            ('2015-02-01', 'NE', 'SEA')
+        ]
+        for swap in swaps:
+            ## find record and get index ##
+            row_indexs = self.new_file.index[
+                (self.new_file['date'] == swap[0]) &
+                (self.new_file['team1'] == swap[1]) &
+                (self.new_file['team2'] == swap[2])
+            ].tolist()
+            if len(row_indexs) == 1:
+                ## need to swap all '1' values for '2' values and visa versa ##
+                for field in [
+                    'team{0}', 'elo{0}_pre', 'elo_prob{0}', 'elo{0}_post', 'qbelo{0}_pre',
+                    'qb{0}', 'qb{0}_value_pre', 'qb{0}_adj', 'qbelo_prob{0}',
+                    'qb{0}_game_value', 'qb{0}_value_post','qbelo{0}_post', 'score{0}'
+                ]:
+                    ## store values before replacement ##
+                    v1 = self.new_file.at[row_indexs[0], field.format(1)]
+                    v2 = self.new_file.at[row_indexs[0], field.format(2)]
+                    ## then repace ##
+                    self.new_file.at[row_indexs[0], field.format(1)] = v2
+                    self.new_file.at[row_indexs[0], field.format(2)] = v1
+            else:
+                print('     Warning -- Attempt to apply manual home/away fix to {0} failed'.format(swap))
+                print('                Index found: {0}'.format(len(row_indexs)))
+        ## apply game id after fixing ##
+        self.new_file = pd.merge(
+            self.new_file,
+            self.games[[
+                ## join ##
+                'home_team', 'away_team', 'season', 'game_type',
+                ## data to add ##
+                'game_id', 'week'
+            ]].groupby(['home_team', 'away_team', 'season', 'game_type']).head(1).rename(columns={
+                'home_team' : 'team1',
+                'away_team' : 'team2'
+            }),
+            on=['team1', 'team2', 'season', 'game_type'],
+            how='left'
+        )
+        ## print missing games if any ##
+        check = self.new_file[
+            (self.new_file['season'] >= 1999) &
+            (pd.isnull(self.new_file['game_id']))
+        ].copy()
+        if len(check) > 0:
+            print('     Warning -- some games are missing game_id:')
+            for index, row in check.iterrows():
+                print('          (date: {0}, home: {1}, away: {2})'.format(
+                    row['date'], row['team1'], row['team2']
+                ))
+
     def construct_elo_file(self):
         ## wrapper on the above functions that creates the elo file ##
         print('Constructing elo file...')
@@ -351,9 +457,9 @@ class EloConstructor():
             print('     No next games found')
         else:
             print('          Found {0} next games. Pulling projected starters...'.format(len(self.next_games)))
-            self.add_starters()
-            print('          Adding team values for adjustments...')
-            self.add_team_values()
+            ## CHANGE TO A SINGLE FUNCTION FOR BOTH STARTERS AND TEAM SINCE BOTH RELY ON THE SAME STATE ##
+            print('          Adding starters and team values...')
+            self.add_starters_and_team_values()
         print('     Adding Elo model...')
         self.add_elo_to_new_and_next()
         print('     Merging new and next games...')
@@ -363,6 +469,7 @@ class EloConstructor():
         else:
             print('     Formatting games for elo file...')
             self.create_new_file()
+            self.add_game_id_and_week()
             print('     Saving new elo file...')
             self.new_file.to_csv(
                 '{0}/qb_elos.csv'.format(self.export_loc),

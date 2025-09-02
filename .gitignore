@@ -1,3 +1,9 @@
 .DS_Store
 secrets.json
 __pycache__
+.env
+.cursor/*
+
+/nfeloqb/Optimizer/In-flight Results/*.csv
+/nfeloqb/Optimizer/Results/*.csv
+/Development/*.csv
