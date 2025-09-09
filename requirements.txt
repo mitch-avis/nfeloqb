@@ -1,5 +1,6 @@
-pandas
-numpy
 nfelodcm
+nfl_data_py
+numpy
+pandas
 python-dotenv
 scipy
