@@ -60,7 +60,7 @@
     "opti_max": 0.50
   },
   "rookie_draft_intercept": {
-    "value" : 9.872,
+    "value": 9.872,
     "description": "Intercept for the rookie draft regression curve",
     "opti_min": 0,
     "opti_max": 100
@@ -72,14 +72,14 @@
     "opti_max": 0
   },
   "rookie_league_reg": {
-    "value" : 0.820,
-    "description" : "Regression of a the team's previous QB Value to the league average",
+    "value": 0.820,
+    "description": "Regression of a the team's previous QB Value to the league average",
     "opti_min": 0,
     "opti_max": 1
   },
   "rookie_league_cap": {
-    "value" : -0.203,
-    "description" : "Maximum discount to the league average for a rookie QB",
+    "value": -0.203,
+    "description": "Maximum discount to the league average for a rookie QB",
     "opti_min": -0.50,
     "opti_max": 0
   },
