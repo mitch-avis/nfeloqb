@@ -80,11 +80,19 @@ class DataLoader:
                 how="left",
             )
             # fill in missing data
-            for col in ["rookie_year", "draft_number", "entry_year", "birth_date"]:
-                # fill in missing data
-                df[col] = df[col].combine_first(df[col + "_fill"])
-                # and then drop fill col
+            # numeric fields -> nullable Int64
+            for col in ["rookie_year", "draft_number", "entry_year"]:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+                df[col + "_fill"] = pd.to_numeric(df[col + "_fill"], errors="coerce")
+                df[col] = df[col].fillna(df[col + "_fill"]).astype("Int64")
                 df = df.drop(columns=[col + "_fill"])
+            # datetime field
+            df["birth_date"] = pd.to_datetime(df["birth_date"], errors="coerce", utc=False)
+            df["birth_date_fill"] = pd.to_datetime(
+                df["birth_date_fill"], errors="coerce", utc=False
+            )
+            df["birth_date"] = df["birth_date"].fillna(df["birth_date_fill"])
+            df = df.drop(columns=["birth_date_fill"])
             # return
             return df
 
