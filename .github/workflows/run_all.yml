@@ -2,7 +2,7 @@ name: run
 
 on:
   schedule:
-    - cron: '0 8 * 8-12,1-2 2-4'
+    - cron: "0 8 * 8-12,1-2 2-4"
 
 permissions:
   contents: write
@@ -19,7 +19,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-
       - name: checkout
         uses: actions/checkout@v4
 
@@ -27,12 +26,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.12
-      
+
       - name: install packages
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
+
       - name: execute
         run: python workflow.py run
 
@@ -40,7 +39,7 @@ jobs:
         id: verify_diff
         run: |
           git diff --quiet . || echo "changed=true" >> $GITHUB_OUTPUT
-      
+
       - name: commit files
         if: steps.verify_diff.outputs.changed == 'true'
         run: |
