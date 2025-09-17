@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import pathlib
 import time
 
 import numpy
@@ -503,6 +504,34 @@ class AirtableWrapper:
                     depth_charts = nfl.import_depth_charts([season])
                     if depth_charts is None or len(depth_charts) == 0:
                         raise RuntimeError("No depth charts returned")
+
+                    # Manually update starting quarterbacks for this week
+                    swap_csv_path = (
+                        pathlib.Path(__file__).parent.parent / "Manual Data" / "manual_qb_swaps.csv"
+                    )
+                    if swap_csv_path.exists():
+                        manual_swaps = pd.read_csv(swap_csv_path)
+                        swap_teams = manual_swaps["team"].unique().tolist()
+                    else:
+                        swap_teams = []
+
+                    for team in swap_teams:
+                        # Get all QBs for this team, most recent dt
+                        team_qbs = depth_charts[
+                            (depth_charts["team"] == team) & (depth_charts["pos_abb"] == "QB")
+                        ]
+                        if not team_qbs.empty:
+                            # Find the most recent dt
+                            latest_dt = team_qbs["dt"].max()
+                            team_qbs_latest = team_qbs[team_qbs["dt"] == latest_dt]
+                            # If there are at least two QBs, swap pos_rank
+                            if team_qbs_latest["pos_rank"].nunique() >= 2:
+                                # Get indices for pos_rank 1 and 2
+                                idx1 = team_qbs_latest[team_qbs_latest["pos_rank"] == 1].index
+                                idx2 = team_qbs_latest[team_qbs_latest["pos_rank"] == 2].index
+                                # Swap pos_rank values
+                                depth_charts.loc[idx1, "pos_rank"] = 2
+                                depth_charts.loc[idx2, "pos_rank"] = 1
 
                     # Filter to QB1 only
                     quarterbacks = depth_charts[
