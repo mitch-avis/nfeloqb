@@ -511,27 +511,35 @@ class AirtableWrapper:
                     )
                     if swap_csv_path.exists():
                         manual_swaps = pd.read_csv(swap_csv_path)
-                        swap_teams = manual_swaps["team"].unique().tolist()
-                    else:
-                        swap_teams = []
+                        # Filter out any rows with missing team or pos_rank
+                        manual_swaps = manual_swaps.dropna(subset=["team"])
 
-                    for team in swap_teams:
-                        # Get all QBs for this team, most recent dt
-                        team_qbs = depth_charts[
-                            (depth_charts["team"] == team) & (depth_charts["pos_abb"] == "QB")
-                        ]
-                        if not team_qbs.empty:
-                            # Find the most recent dt
-                            latest_dt = team_qbs["dt"].max()
-                            team_qbs_latest = team_qbs[team_qbs["dt"] == latest_dt]
-                            # If there are at least two QBs, swap pos_rank
-                            if team_qbs_latest["pos_rank"].nunique() >= 2:
-                                # Get indices for pos_rank 1 and 2
-                                idx1 = team_qbs_latest[team_qbs_latest["pos_rank"] == 1].index
-                                idx2 = team_qbs_latest[team_qbs_latest["pos_rank"] == 2].index
-                                # Swap pos_rank values
-                                depth_charts.loc[idx1, "pos_rank"] = 2
-                                depth_charts.loc[idx2, "pos_rank"] = 1
+                        # --- Manual depth chart fix for teams in manual_swaps ---
+                        for _, swap_row in manual_swaps.iterrows():
+                            team = swap_row["team"]
+                            # Default to pos_rank=2 if not specified (backward compatibility)
+                            target_pos_rank = int(swap_row.get("starting_pos_rank", 2))
+
+                            # Get all QBs for this team
+                            team_qbs = depth_charts[
+                                (depth_charts["team"] == team) & (depth_charts["pos_abb"] == "QB")
+                            ]
+                            if not team_qbs.empty:
+                                # Find the most recent dt
+                                latest_dt = team_qbs["dt"].max()
+                                team_qbs_latest = team_qbs[team_qbs["dt"] == latest_dt]
+
+                                # Check if target pos_rank exists
+                                if target_pos_rank in team_qbs_latest["pos_rank"].values:
+                                    # Get indices for pos_rank 1 and target_pos_rank
+                                    idx1 = team_qbs_latest[team_qbs_latest["pos_rank"] == 1].index
+                                    idx_target = team_qbs_latest[
+                                        team_qbs_latest["pos_rank"] == target_pos_rank
+                                    ].index
+
+                                    # Swap pos_rank values
+                                    depth_charts.loc[idx1, "pos_rank"] = target_pos_rank
+                                    depth_charts.loc[idx_target, "pos_rank"] = 1
 
                     # Filter to QB1 only
                     quarterbacks = depth_charts[
