@@ -3,6 +3,7 @@ import math
 import os
 import pathlib
 import time
+from urllib.error import HTTPError, URLError
 
 import numpy
 import pandas as pd
@@ -498,11 +499,30 @@ class AirtableWrapper:
                 try:
                     # Determine current season
                     now_utc = pd.Timestamp.utcnow().tz_convert("UTC")
-                    season = now_utc.tz_convert("US/Eastern").year
+                    now_et = now_utc.tz_convert("US/Eastern")
 
-                    # Load depth charts for current season
-                    depth_charts = nfl.import_depth_charts([season])
+                    # NFL season spans fall->winter; in Jan/Feb the season year is typically
+                    # the prior year.
+                    # Use a pragmatic cutoff so we request a year that exists in nflverse datasets.
+                    primary_season = now_et.year if now_et.month >= 7 else (now_et.year - 1)
+                    candidate_seasons = [primary_season, primary_season - 1]
+
+                    # Load depth charts for the best-available season
+                    depth_charts = None
+                    last_err: Exception | None = None
+                    for season in candidate_seasons:
+                        try:
+                            depth_charts = nfl.import_depth_charts([season])
+                            if depth_charts is not None and len(depth_charts) > 0:
+                                last_err = None
+                                break
+                        except (HTTPError, URLError, OSError, ValueError) as e:
+                            last_err = e
+                            continue
+
                     if depth_charts is None or len(depth_charts) == 0:
+                        if last_err is not None:
+                            raise RuntimeError("Depth charts unavailable") from last_err
                         raise RuntimeError("No depth charts returned")
 
                     # Manually update starting quarterbacks for this week
@@ -624,7 +644,9 @@ class AirtableWrapper:
 
                     # Build qb_id and last_updated
                     starters["qb_id"] = (
-                        starters["player_display_name"] + " - " + starters["player_id"]
+                        starters["player_display_name"].astype(str)
+                        + " - "
+                        + starters["player_id"].astype(str)
                     )
                     starters["last_updated"] = now_utc.isoformat()
 
@@ -640,7 +662,15 @@ class AirtableWrapper:
                         ]
                     ]
                     return
-                except (KeyError, AttributeError, ValueError, RuntimeError):
+                except (
+                    KeyError,
+                    AttributeError,
+                    ValueError,
+                    RuntimeError,
+                    HTTPError,
+                    URLError,
+                    OSError,
+                ):
                     # fall back to "last starter" if depth charts fail
                     pass
 
