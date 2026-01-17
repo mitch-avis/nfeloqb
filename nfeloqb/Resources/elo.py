@@ -140,7 +140,15 @@ class Elo:
         home_prob_ex_qb = 1 / (10 ** (-elo_dif_ex_qb / self.b) + 1)
         away_prob_ex_qb = 1 - home_prob_ex_qb
         # return
-        return home_elo, away_elo, home_prob, away_prob, elo_dif, home_prob_ex_qb, away_prob_ex_qb
+        return (
+            home_elo,
+            away_elo,
+            home_prob,
+            away_prob,
+            elo_dif,
+            home_prob_ex_qb,
+            away_prob_ex_qb,
+        )
 
     def update_elos(self, record, home_elo, away_elo, home_prob, away_prob, elo_dif):
         # function that updates the elos for a given record
@@ -176,9 +184,15 @@ class Elo:
         if record["season"] > self.current_season:
             self.handle_regression()
         # get elos and probs
-        home_elo, away_elo, home_prob, away_prob, elo_dif, home_prob_ex_qb, away_prob_ex_qb = (
-            self.calc_elo_difs(record)
-        )
+        (
+            home_elo,
+            away_elo,
+            home_prob,
+            away_prob,
+            elo_dif,
+            home_prob_ex_qb,
+            away_prob_ex_qb,
+        ) = self.calc_elo_difs(record)
         # if the game has been played, update elos
         if pd.isnull(record["result"]):
             new_home_elo = numpy.nan
