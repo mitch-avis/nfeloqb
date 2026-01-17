@@ -27,10 +27,14 @@ class MetaConstructor:
         # additional
         self.package_loc = pathlib.Path(__file__).parent.parent.parent.resolve()
         self.repl = json.load(
-            open(f"{self.package_loc}/nfeloqb/Manual Data/name_id_repl.json", encoding="utf-8")
+            open(
+                f"{self.package_loc}/nfeloqb/Manual Data/name_id_repl.json",
+                encoding="utf-8",
+            )
         )
         self.missing_draft_data = pd.read_csv(
-            f"{self.package_loc}/nfeloqb/Manual Data/missing_draft_data.csv", index_col=0
+            f"{self.package_loc}/nfeloqb/Manual Data/missing_draft_data.csv",
+            index_col=0,
         )
         self.gen_file()
 
@@ -114,7 +118,8 @@ class MetaConstructor:
         """
         # load missing draft data
         missing_draft = pd.read_csv(
-            f"{self.package_loc}/nfeloqb/Manual Data/missing_draft_data.csv", index_col=0
+            f"{self.package_loc}/nfeloqb/Manual Data/missing_draft_data.csv",
+            index_col=0,
         )
         # avoid dupes
         missing_draft = missing_draft.groupby(["player_id"]).head(1)
@@ -140,7 +145,12 @@ class MetaConstructor:
             df[col] = df[col].fillna(df[f"{col}_fill"])
         # drop fill cols
         df = df.drop(
-            columns=["rookie_year_fill", "draft_number_fill", "entry_year_fill", "birth_date_fill"]
+            columns=[
+                "rookie_year_fill",
+                "draft_number_fill",
+                "entry_year_fill",
+                "birth_date_fill",
+            ]
         )
         # change birth date to dob
         df = df.rename(columns={"birth_date": "dob"})
