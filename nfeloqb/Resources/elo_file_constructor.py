@@ -457,7 +457,9 @@ class EloConstructor:
 
         # align playoff nomenclature to fastr
         self.new_file["game_type"] = numpy.where(  # type: ignore
-            pd.isnull(self.new_file["playoff"]), "REG", "POST"  # type: ignore
+            pd.isnull(self.new_file["playoff"]),
+            "REG",
+            "POST",  # type: ignore
         )
         self.games["game_type"] = numpy.where(
             numpy.isin(self.games["game_type"], ["WC", "DIV", "CON", "SB"]),
