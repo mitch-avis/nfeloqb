@@ -3,6 +3,7 @@ import math
 import os
 import pathlib
 import time
+from typing import Any, cast
 from urllib.error import HTTPError, URLError
 
 import numpy
@@ -10,9 +11,32 @@ import pandas as pd
 import requests
 
 try:
-    import nfl_data_py as nfl
+    import nflreadpy as nfl
 except ImportError:
     nfl = None
+
+
+def _to_pandas(df: Any) -> pd.DataFrame | None:
+    if df is None:
+        return None
+    if isinstance(df, pd.DataFrame):
+        return df
+    to_pandas = getattr(df, "to_pandas", None)
+    if callable(to_pandas):
+        try:
+            converted = to_pandas()
+            return (
+                converted
+                if isinstance(converted, pd.DataFrame)
+                else pd.DataFrame(cast(Any, converted))
+            )
+        except ModuleNotFoundError as exc:
+            if exc.name == "pyarrow":
+                to_dicts = getattr(df, "to_dicts", None)
+                if callable(to_dicts):
+                    return pd.DataFrame(cast(Any, to_dicts()))
+            raise
+    return pd.DataFrame(cast(Any, df))
 
 
 class AirtableWrapper:
@@ -25,7 +49,11 @@ class AirtableWrapper:
         self.at_config = at_config
 
         # NEW: disabled mode for local runs or missing creds
-        disable_flag = os.getenv("NFELOQB_DISABLE_AIRTABLE", "").lower() in ("1", "true", "yes")
+        disable_flag = os.getenv("NFELOQB_DISABLE_AIRTABLE", "").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
         required = ["base", "qb_table", "starter_table", "token"]
         missing = any(not self.at_config.get(k) for k in required)
         self.disabled = disable_flag or missing
@@ -35,7 +63,13 @@ class AirtableWrapper:
         self.existing_qb_options = []
         self.existing_starters = {}
         self.starters_df = pd.DataFrame(
-            columns=["team", "player_id", "player_display_name", "draft_number", "last_updated"]
+            columns=[
+                "team",
+                "player_id",
+                "player_display_name",
+                "draft_number",
+                "last_updated",
+            ]
         )
         self.all_qbs = None
         self.qb_options = []
@@ -203,7 +237,10 @@ class AirtableWrapper:
         self.make_patch_request(
             base=base,
             table=table,
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
             data=data,
         )
 
@@ -316,11 +353,17 @@ class AirtableWrapper:
         dummy_id = None
         for index, value in enumerate(qb_options_to_write):
             # create record structure
-            data = {"records": [{"fields": {"team": "DUMMY", "qb_id": value}}], "typecast": True}
+            data = {
+                "records": [{"fields": {"team": "DUMMY", "qb_id": value}}],
+                "typecast": True,
+            }
             if index == 0:
                 # if first record, create the dummy
                 self.make_post_request(
-                    base=self.base, table=self.starter_table, headers=self.base_headers, data=data
+                    base=self.base,
+                    table=self.starter_table,
+                    headers=self.base_headers,
+                    data=data,
                 )
                 # retrieve record to get id
                 resp = self.make_get_request(
@@ -336,7 +379,10 @@ class AirtableWrapper:
                 data["records"][0]["id"] = dummy_id
                 # make a patch request
                 self.make_patch_request(
-                    base=self.base, table=self.starter_table, headers=self.base_headers, data=data
+                    base=self.base,
+                    table=self.starter_table,
+                    headers=self.base_headers,
+                    data=data,
                 )
             # if last record, delete dummy
             if index == len(qb_options_to_write) - 1:
@@ -489,7 +535,10 @@ class AirtableWrapper:
         if len(updates) > 0:
             print(f"     Found {len(updates)} updated starters")
             self.update_table(
-                base=self.base, table=self.starter_table, df=pd.DataFrame(updates), id_col="id"
+                base=self.base,
+                table=self.starter_table,
+                df=pd.DataFrame(updates),
+                id_col="id",
             )
 
     def pull_current_starters(self):
@@ -512,7 +561,7 @@ class AirtableWrapper:
                     last_err: Exception | None = None
                     for season in candidate_seasons:
                         try:
-                            depth_charts = nfl.import_depth_charts([season])
+                            depth_charts = _to_pandas(nfl.load_depth_charts([season]))
                             if depth_charts is not None and len(depth_charts) > 0:
                                 last_err = None
                                 break
@@ -594,7 +643,7 @@ class AirtableWrapper:
                     # Fill missing draft_number from nflverse players if possible
                     if starters["draft_number"].isna().any():
                         try:
-                            players = nfl.import_players()
+                            players = _to_pandas(nfl.load_players())
                             if players is not None and len(players):
                                 p_pid = (
                                     "gsis_id"
@@ -624,7 +673,10 @@ class AirtableWrapper:
                                         players[
                                             [p_pid, draft_col] + ([name_col2] if name_col2 else [])
                                         ].rename(
-                                            columns={p_pid: "player_id", draft_col: "draft_number"}
+                                            columns={
+                                                p_pid: "player_id",
+                                                draft_col: "draft_number",
+                                            }
                                         ),
                                         on="player_id",
                                         how="left",
@@ -695,7 +747,15 @@ class AirtableWrapper:
             )
             latest["qb_id"] = latest["player_display_name"] + " - " + latest["player_id"]
             starters = (
-                latest[["team", "qb_id", "player_id", "player_display_name", "draft_number"]]
+                latest[
+                    [
+                        "team",
+                        "qb_id",
+                        "player_id",
+                        "player_display_name",
+                        "draft_number",
+                    ]
+                ]
                 .groupby("team", as_index=False)
                 .head(1)
             )
