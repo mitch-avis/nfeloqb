@@ -312,7 +312,10 @@ class DataLoader:
             df = df.drop(columns=self.stat_cols)
             # create model file
             df = pd.merge(
-                df, df_team[["game_id", "team", "team_VALUE"]], on=["game_id", "team"], how="left"
+                df,
+                df_team[["game_id", "team", "team_VALUE"]],
+                on=["game_id", "team"],
+                how="left",
             )
             self.model_df = df.copy()
             print("     Successfully retrived and stored")
