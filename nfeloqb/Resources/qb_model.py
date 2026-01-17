@@ -65,7 +65,7 @@ class QBModel:
         season_avgs = self.games.groupby(["season"])["team_VALUE"].mean().reset_index()
         # write to stoarge
         for _, row in team_avgs.iterrows():
-            self.team_avgs[f"{row["season"]}{row["team"]}"] = row["team_VALUE"]
+            self.team_avgs[f"{row['season']}{row['team']}"] = row["team_VALUE"]
         for _, row in season_avgs.iterrows():
             self.season_avgs[row["season"]] = row["team_VALUE"]
 
@@ -175,7 +175,10 @@ class QBModel:
             qb, team, opponent = self.get_objects(row)
             # create a game context
             game_context = GameContext(
-                game_id=row["game_id"], config=self.config, temp=row["temp"], wind=row["wind"]
+                game_id=row["game_id"],
+                config=self.config,
+                temp=row["temp"],
+                wind=row["wind"],
             )
             weather_adj = game_context.weather_adj()
             # get values
@@ -298,7 +301,10 @@ class QBModel:
         elo["f38_team_adj"] = elo["f38_team_adj"] / 3.3
         # merge elo data
         df = pd.merge(
-            df, elo, on=["gameday", "team", "opponent", "player_display_name"], how="left"
+            df,
+            elo,
+            on=["gameday", "team", "opponent", "player_display_name"],
+            how="left",
         )
         # return df
         return df
@@ -346,7 +352,11 @@ class QBModel:
             numpy.where(df["start_number"] <= 16, df["abs_error"], numpy.nan)
         )
         record["mae_backup"] = numpy.nanmean(  # type: ignore
-            numpy.where(df["qb_value_pre"] - df["team_value_pre"] < -15, df["abs_error"], numpy.nan)
+            numpy.where(
+                df["qb_value_pre"] - df["team_value_pre"] < -15,
+                df["abs_error"],
+                numpy.nan,
+            )
         )
         # add rolling averages to record
         for roll in [8, 16, 24, 32]:
