@@ -160,7 +160,7 @@ def optimize_config_subsets_with_rand(rounds: int = 25):
     ]
     # optimize each subset
     for subset in subsets:
-        print(f"Optimizing subset: {subset["subset_name"]}")
+        print(f"Optimizing subset: {subset['subset_name']}")
         best_recs = []
         for i in range(rounds):
             print(f"Round {i + 1} of {rounds}")
@@ -215,7 +215,12 @@ def optimize_config_with_rand(rounds: int = 100, subset_names: list[str] = None)
         },
         {
             "subset_name": "weather",
-            "subset": ["wind_disc_height", "wind_disc_mp", "temp_disc_height", "temp_disc_mp"],
+            "subset": [
+                "wind_disc_height",
+                "wind_disc_mp",
+                "temp_disc_height",
+                "temp_disc_mp",
+            ],
             "objective": "mae",
         },
         {
@@ -240,10 +245,10 @@ def optimize_config_with_rand(rounds: int = 100, subset_names: list[str] = None)
     for subset in subsets:
         if subset["subset_name"] not in subset_names and len(subset_names) > 0:
             continue
-        print(f"Optimizing subset: {subset["subset_name"]}")
+        print(f"Optimizing subset: {subset['subset_name']}")
         best_recs = []
         for i in range(rounds):
-            print(f"Round {i+1} of {rounds}")
+            print(f"Round {i + 1} of {rounds}")
             optimizer = ConfigOptimizer(
                 data=data.model_df,  # type: ignore
                 config=config,
