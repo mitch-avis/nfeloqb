@@ -36,7 +36,7 @@
 34,Anthony Wright,00-0018272,Anthony Wright,,Anthony,Wright,,RES,1976-02-14,South Carolina,73.0,211.0,,1999.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/tot1rumaduxp1ixjqmlp"
 35,Archie Manning,MAN479160,Archie Manning,,Elisha,Manning,,ACT,1949-05-19,Mississippi,75.0,212.0,,1974.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/g9vyzturkqi7oguzxqry"
 36,Arnie Galiffa,,,,,,,,,,,,,,,,,
-37,Art Schlichter,SCH223882,Art Schlichter,,Arthur,Schlichter,,ACT,1960-04-25,Ohio State,75.0,210.0,,1982.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/ajizynzp512ccmfvnyyt"
+37,Art Schlichter,SCH223882,Art Schlichter,,Arthur,Schlichter,,ACT,1960-04-25,Ohio State,75.0,210.0,1982.0,1982.0,4.0,1.0,BAL,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/ajizynzp512ccmfvnyyt"
 38,Austin Davis,00-0028957,Austin Davis,Austin,Austin,Davis,A.Davis,ACT,1989-06-02,Southern Mississippi,74.0,221.0,,2012.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/wmquxjs1nuwferz7o9q2"
 39,Austin Reed,00-0039464,Austin Reed,Austin,Austin,Reed,A.Reed,DEV,2000-02-22,Western Kentucky; University of West Florida; Southern Illinois,73.0,220.0,,2024.0,,,,"https://static.www.nfl.com/image/upload/f_auto,q_auto/league/as3ophwqsfgusvffepv1"
 40,B.J. Coleman,00-0029219,B.J. Coleman,,Bryon,Coleman,,DEV,1988-09-16,Tennessee-Chattanooga,75.0,231.0,2012.0,2012.0,243.0,7.0,GB,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/shactx6bhuudinicm1q1"
@@ -82,7 +82,7 @@
 80,Bob Gagliano,00-0005676,Bob Gagliano,,Robert,Gagliano,,CUT,1958-09-05,Utah State; Alliant International University; Glendale Community College,75.0,205.0,1981.0,1981.0,319.0,12.0,KC,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/ggbwrkjsbtezz4mmnnwt"
 81,Bob Griese,GRI037752,Bob Griese,,Robert,Griese,,ACT,1945-02-03,Purdue,73.0,190.0,,1974.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/ganvnmltnuhgmnmdhed5"
 82,Bob Hewko,HEW415290,Bob Hewko,,Robert,Hewko,,ACT,1960-06-08,Florida,75.0,195.0,,1983.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/bljjqiuud94obk66bkx7"
-83,Bob Holly,HOL421464,Bob Holly,,Robert,Holly,,ACT,1960-06-01,Princeton,74.0,197.0,,1982.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/iyn6arywmtzoakrpyrbp"
+83,Bob Holly,HOL421464,Bob Holly,,Robert,Holly,,ACT,1960-06-01,Princeton,74.0,197.0,1982.0,1982.0,291.0,11.0,WAS,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/iyn6arywmtzoakrpyrbp"
 84,Bob Lee,LEE590139,Bob Lee,,Robert,Lee,,ACT,1945-08-07,University of U. of Pacific; Arizona State; City College (SF),74.0,195.0,,1974.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/unrg2tx8kapf7ctnqpra"
 85,Bob Waterfield,,,,,,,,,,,,,,,,,
 86,Bob Waters,,,,,,,,,,,,,,,,,
@@ -134,7 +134,7 @@
 132,Bruce Gradkowski,00-0024408,Bruce Gradkowski,,Bruce,Gradkowski,,CUT,1983-01-27,Toledo,73.0,217.0,2006.0,2006.0,194.0,6.0,TB,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/mihpjxwfsrgjyqwikwsa"
 133,Bruce Lemmerman,,,,,,,,,,,,,,,,,
 134,Bruce Mathison,MAT266407,Bruce Mathison,,Bruce,Mathison,,ACT,1959-04-25,Nebraska,75.0,205.0,1983.0,1983.0,272.0,10.0,LAC,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/mfh4naoydptvc7d80oy9"
-135,Bryan Clark,CLA487491,Bryan Clark,,Monte,Clark,,ACT,1960-07-27,Michigan State,74.0,198.0,,1982.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/eqb1o6o2oyug61ncgzwi"
+135,Bryan Clark,CLA487491,Bryan Clark,,Monte,Clark,,ACT,1960-07-27,Michigan State,74.0,198.0,1982.0,1982.0,251.0,9.0,SF,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/eqb1o6o2oyug61ncgzwi"
 136,Bryan Randall,00-0023237,Bryan Randall,,Bryan,Randall,,CUT,1983-08-16,Virginia Tech,72.0,228.0,,2006.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/qim9z6fsvwynot3nhspf"
 137,Bryce Perkins,00-0035939,Bryce Perkins,Bryce,Bryce,Perkins,B.Perkins,ACT,1996-12-20,Virginia,75.0,215.0,,2020.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/mouuxpmyg8wgcrtfc0tr"
 138,Bryce Petty,00-0031568,Bryce Petty,Bryce,Bryce,Petty,B.Petty,CUT,1991-05-31,Baylor,75.0,226.0,2015.0,2015.0,103.0,4.0,NYJ,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/ptb0vcf2vqqittc5qown"
@@ -530,7 +530,7 @@
 528,Jim Hart,HAR679874,Jim Hart,,James,Hart,,ACT,1944-04-29,Southern Illinois,73.0,215.0,,1974.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/wk8ttd1noffeqk9sy9qt"
 529,Jim Kelly,00-0009111,Jim Kelly,,James,Kelly,,ACT,1960-02-14,Miami,75.0,226.0,1983.0,1986.0,14.0,1.0,BUF,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/ezhzfqgz0wubbwdmyxlt"
 530,Jim LeClair,,,,,,,,,,,,,,,,,
-531,Jim McMahon,00-0010997,Jim McMahon,,James,McMahon,,ACT,1959-08-21,BYU,73.0,195.0,,1982.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/lebvefpsnyrrseabqo3i"
+531,Jim McMahon,00-0010997,Jim McMahon,,James,McMahon,,ACT,1959-08-21,BYU,73.0,195.0,1982.0,1982.0,5.0,1.0,CHI,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/lebvefpsnyrrseabqo3i"
 532,Jim Miller,00-0011276,Jim Miller,,James,Miller,,ACT,1971-02-09,Michigan State,74.0,225.0,1994.0,1994.0,178.0,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/p61l8tusatojk5gicpkp"
 533,Jim Murphy,00-0011843,Jim Murphy,,Jim,Murphy,,CUT,1975-02-23,"Northeastern University, Mass",75.0,230.0,,1998.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/dktbmrs2aakxohtwigmu"
 534,Jim Ninowski,,,,,,,,,,,,,,,,,
@@ -736,7 +736,7 @@
 734,Matt Flynn,00-0026349,Matt Flynn,Matt,Matthew,Flynn,,ACT,1985-06-20,LSU,74.0,225.0,2008.0,2008.0,209.0,7.0,GB,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/goh8anyqhyvmkfmfbejp"
 735,Matt Gutierrez,00-0024824,Matt Gutierrez,,Matthew,Gutierrez,,ACT,1984-06-09,Idaho State; Michigan,76.0,230.0,,2007.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/vuoaozig4v78bxqzkjaw"
 736,Matt Hasselbeck,00-0007091,Matt Hasselbeck,,Matthew,Hasselbeck,,ACT,1975-09-25,Boston College,76.0,235.0,1998.0,1999.0,187.0,6.0,GB,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/t1nf9avoy2kauqwrvzza"
-737,Matt Kofler,KOF415291,Matt Kofler,,Matthew,Kofler,,ACT,1959-08-30,San Diego State; San Diego Mesa College,75.0,192.0,,1982.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/d0aftpzypgypu47d5pgi"
+737,Matt Kofler,KOF415291,Matt Kofler,,Matthew,Kofler,,ACT,1959-08-30,San Diego State; San Diego Mesa College,75.0,192.0,1982.0,1982.0,48.0,2.0,BUF,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/d0aftpzypgypu47d5pgi"
 738,Matt Leinart,00-0024225,Matt Leinart,,Matthew,Leinart,,ACT,1983-05-11,USC,77.0,225.0,2006.0,2006.0,10.0,1.0,ARI,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/y1vcveczcmnterc5qphn"
 739,Matt Lytle,00-0010206,Matt Lytle,,Matthew,Lytle,,ACT,1975-09-04,Pittsburgh,76.0,225.0,,2000.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/wvvg8iq93gqd1exfbyvl"
 740,Matt Mauck,00-0022768,Matt Mauck,,Matthew,Mauck,,DEV,1979-02-12,LSU,74.0,220.0,2004.0,2004.0,225.0,7.0,DEN,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/pljheww872q9g0zegshd"
@@ -772,19 +772,19 @@
 770,Mike Hohensee,HOH207645,Mike Hohensee,,Michael,Hohensee,,ACT,1961-02-22,Minnesota; Mt. San Antonio,72.0,205.0,,1987.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/u4rdevmeggoetss4zqjp"
 771,Mike Hold,HOL024792,Mike Hold,,James,Hold,,ACT,1963-03-16,South Carolina; Mesa CC,72.0,190.0,,1987.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/b0puu3zlv1duhlfqeyen"
 772,Mike Kafka,00-0027722,Mike Kafka,,Michael,Kafka,,DEV,1987-07-25,Northwestern,75.0,230.0,2010.0,2010.0,122.0,4.0,PHI,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/jbpqdkzygpdgouw6h5ds"
-773,Mike Kelley,KEL298998,Mike Kelley,,Michael,Kelley,,ACT,1959-12-31,Georgia Tech,75.0,195.0,,1987.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/hn2siteaw5fhlmx6uvd1"
+773,Mike Kelley,KEL298998,Mike Kelley,,Michael,Kelley,,ACT,1959-12-31,Georgia Tech,75.0,195.0,1982.0,1987.0,149.0,6.0,ATL,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/hn2siteaw5fhlmx6uvd1"
 774,Mike Kerrigan,KER611996,Mike Kerrigan,,Michael,Kerrigan,,ACT,1960-04-27,Northwestern,75.0,205.0,,1983.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/pjwz46qvzv5ejwvwkv8f"
 775,Mike Kirkland,KIR524568,Mike Kirkland,,Michael,Kirkland,,ACT,1954-06-29,Arkansas,73.0,195.0,1976.0,1976.0,143.0,5.0,BAL,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/a6tkfvx4lz9sbjk4me0j"
 776,Mike Kruczek,KRU063891,Mike Kruczek,,Michael,Kruczek,,ACT,1953-03-15,Boston College,73.0,202.0,1976.0,1976.0,47.0,2.0,PIT,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/ak7rowm9lqybljnw065s"
 777,Mike Livingston,LIV484505,Mike Livingston,,Michael,Livingston,,ACT,1945-11-14,SMU,76.0,212.0,,1974.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/g3pykcenr6kpi8nxl9r4"
 778,Mike Loyd,LOY276861,Mike Loyd,,Charles,Loyd,,ACT,1956-05-06,Missouri Southern; Tulsa; Kansas,74.0,216.0,,1979.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/mm00kympqzunqkdnlshe"
-779,Mike Machurek,MAC240427,Mike Machurek,,Michael,Machurek,,ACT,1960-07-22,Idaho State; San Diego City College,73.0,205.0,,1982.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/a6zvpvml0khzpziwgfsv"
+779,Mike Machurek,MAC240427,Mike Machurek,,Michael,Machurek,,ACT,1960-07-22,Idaho State; San Diego City College,73.0,205.0,1982.0,1982.0,154.0,6.0,DET,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/a6zvpvml0khzpziwgfsv"
 780,Mike McCoy,00-0010743,Mike McCoy,,Mike,McCoy,,CUT,1972-04-01,Utah; California State - Long Beach,74.0,204.0,,1997.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/clc9rydjiimks3pmb0wp"
 781,Mike McMahon,00-0020308,Mike McMahon,,Michael,McMahon,,ACT,1979-02-08,Rutgers,74.0,215.0,2001.0,2001.0,149.0,5.0,DET,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/oqk3auohiba0d6blhboc"
 782,Mike Moroski,MOR296625,Mike Moroski,,Michael,Moroski,,ACT,1957-09-04,UC Davis,76.0,200.0,1979.0,1979.0,154.0,6.0,ATL,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/ilrc9rsovxara03fog9o"
 783,Mike Norseth,00-0012188,Mike Norseth,,Michael,Norseth,,ACT,1964-08-22,Kansas; Snow,74.0,200.0,1986.0,1987.0,174.0,7.0,CLE,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/dr44mwd5ladt3sdhc8ug"
 784,Mike Nott,NOT415290,Mike Nott,,Wesley,Nott,,ACT,1952-05-19,Santa Clara University,75.0,203.0,,1976.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/hmnlm1q6xhk6pfuhy7dz"
-785,Mike Pagel,PAG498348,Mike Pagel,,Michael,Pagel,,CUT,1960-09-13,Arizona State,74.0,201.0,,1982.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/sjcjnlxuxwllgtthxkwm"
+785,Mike Pagel,PAG498348,Mike Pagel,,Michael,Pagel,,CUT,1960-09-13,Arizona State,74.0,201.0,1982.0,1982.0,84.0,4.0,BAL,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/sjcjnlxuxwllgtthxkwm"
 786,Mike Pawlawski,00-0012682,Mike Pawlawski,,Michael,Pawlawski,,ACT,1969-07-18,California,73.0,205.0,,1992.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/fbeavz0xiwughslpjotv"
 787,Mike Perez,PER042375,Mike Perez,,Michael,Perez,,ACT,1965-03-07,San Jose State,73.0,210.0,,1991.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/varskz5bigzlpy1xbxix"
 788,Mike Phipps,PHI798625,Mike Phipps,,Michael,Phipps,,ACT,1947-11-19,Purdue,75.0,208.0,,1974.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/qfibjhkwworzac3b5ibo"
@@ -820,7 +820,7 @@
 818,Norm Van Brocklin,,,,,,,,,,,,,,,,,
 819,Norris Weese,WEE664464,Norris Weese,,Norris,Weese,,ACT,1951-08-12,Mississippi,73.0,195.0,1974.0,1976.0,99.0,4.0,LAR,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/c9ytxl2em3wz3fotlvdg"
 820,Ogden Compton,,,,,,,,,,,,,,,,,
-821,Oliver Luck,LUC533943,Oliver Luck,,Oliver,Luck,,ACT,1960-04-05,West Virginia,74.0,196.0,,1982.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/sgzxt8fimu3heizcx4mc"
+821,Oliver Luck,LUC533943,Oliver Luck,,Oliver,Luck,,ACT,1960-04-05,West Virginia,74.0,196.0,1982.0,1982.0,44.0,2.0,HOU,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/sgzxt8fimu3heizcx4mc"
 822,Omar Jacobs,00-0024378,Omar Jacobs,,Omar,Jacobs,,CUT,1984-03-03,Bowling Green,76.0,224.0,,2006.0,,,,"https://static.www.nfl.com/image/private/f_auto,q_auto/league/htqqjf3rr1t53egzb1ig"
 823,Otto Graham,,,,,,,,,,,,,,,,,
 824,P.J. Walker,,,,,,,,,,,,,,,,,
