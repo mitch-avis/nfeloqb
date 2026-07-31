@@ -3,9 +3,8 @@ import json
 import os
 import pathlib
 
-import numpy
 import nfelodcm as dcm
-
+import numpy
 
 ## Temporary direct pull until nfelodcm supports windowed/latest iter pulls ##
 ROSTER_DOWNLOAD_URL = (
@@ -18,8 +17,7 @@ import pandas as pd
 
 
 class MetaConstructor:
-    """
-    Creates a df that combines meta data with id mappings across historic 538/nfelo names
+    """Creates a df that combines meta data with id mappings across historic 538/nfelo names
     and gsis ids where available
     """
 
@@ -47,8 +45,7 @@ class MetaConstructor:
         self.gen_file()
 
     def get_538_qbs(self):
-        """
-        Creates a list of all qbs that are in the elo file, replaceing where necessary
+        """Creates a list of all qbs that are in the elo file, replaceing where necessary
         to ensure downstream merge
         """
         flat_df = pd.concat(
@@ -65,9 +62,7 @@ class MetaConstructor:
         return flat_df
 
     def get_fastr_qbs(self):
-        """
-        Gets fastr qbs and filters down to relevant columns. Applies mapping
-        """
+        """Gets fastr qbs and filters down to relevant columns. Applies mapping"""
         # isolate qbs
         qbs = self.players[
             # QBs
@@ -121,9 +116,7 @@ class MetaConstructor:
         return qbs
 
     def add_missing_draft_data(self, df):
-        """
-        Adds missing draft data to the fastr df
-        """
+        """Adds missing draft data to the fastr df"""
         # load missing draft data
         missing_draft = pd.read_csv(
             f"{self.package_loc}/nfeloqb/Manual Data/missing_draft_data.csv",
@@ -166,9 +159,7 @@ class MetaConstructor:
         return df
 
     def add_manual_data(self, df):
-        """
-        Adds manual data to the condensed df
-        """
+        """Adds manual data to the condensed df"""
         # load manual data
         # check that its there
         if not os.path.exists(f"{self.package_loc}/nfeloqb/Manual Data/manual_data.csv"):
@@ -193,8 +184,7 @@ class MetaConstructor:
         return df
 
     def get_latest_roster_status(self):
-        """
-        Pulls current-season roster status from nflverse.
+        """Pulls current-season roster status from nflverse.
 
         Temporary direct HTTP pull until nfelodcm supports windowed/latest
         iter pulls for the rosters table.
@@ -206,8 +196,7 @@ class MetaConstructor:
         return roster[["gsis_id", "status"]].rename(columns={"status": "roster_status"})
 
     def apply_roster_status(self, df, roster_status):
-        """
-        Overwrites status from current-season roster presence.
+        """Overwrites status from current-season roster presence.
         Players with a gsis_id not on the roster are marked RET.
         Elo-only historic rows (no gsis_id) keep their existing status.
         """
@@ -228,9 +217,7 @@ class MetaConstructor:
         return df
 
     def gen_file(self):
-        """
-        Calls the methods above to generate the final file
-        """
+        """Calls the methods above to generate the final file"""
         # get 538 qbs
         qb_elo = self.get_538_qbs()
         # get fastr qbs

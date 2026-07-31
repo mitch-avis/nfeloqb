@@ -6,9 +6,7 @@ import pandas as pd
 
 
 def compare_qb_file(ext_file_path: str):
-    """
-    Comapres a QB file to the current QB file
-    """
+    """Comapres a QB file to the current QB file"""
     # comparison columns
     comparison_cols = ["value_pre", "value_post", "adj", "game_value"]
     # establish path
@@ -125,11 +123,9 @@ def compare_qb_file(ext_file_path: str):
     for _, row in merged.sort_values(by="value_pre_abs_diff", ascending=False).head(20).iterrows():
         sign = "+" if row["value_pre_diff"] > 0 else "-"
         print(
-            (
-                f"{row['qb']}, Start {row['start_number']}: "
-                f"{round(row['value_pre_cur'], 2)} "
-                f"({sign}{round(row['value_pre_diff'], 2)})"
-            )
+            f"{row['qb']}, Start {row['start_number']}: "
+            f"{round(row['value_pre_cur'], 2)} "
+            f"({sign}{round(row['value_pre_diff'], 2)})"
         )
     # write to csv
     merged.to_csv(f"{root_loc}/Development/qb_file_comparison.csv", index=False)
@@ -158,9 +154,7 @@ def compare_qb_file(ext_file_path: str):
 
 
 def compare_to_538():
-    """
-    Compares the nfelo QB predictions to the 538 QB predictions for 2009 to 2022
-    """
+    """Compares the nfelo QB predictions to the 538 QB predictions for 2009 to 2022"""
     # get the flattened model data
     # establish path
     root_loc = pathlib.Path(__file__).parent.parent.resolve()

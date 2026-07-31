@@ -27,7 +27,7 @@ from .Resources import (
 try:
     ENV_PATH = f"{pathlib.Path(__file__).parent.parent.resolve()}/.env"
     load_dotenv(ENV_PATH)
-except (FileNotFoundError, OSError):
+except FileNotFoundError, OSError:
     # if running as action, these will already be in env
     pass
 
@@ -104,7 +104,7 @@ def run(perform_starter_update=False, model_only=False, force_run=False):
     with open(f"{package_folder}/package_meta.json", "w", encoding="utf-8") as fp:
         json.dump(
             {
-                "last_updated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "last_updated": datetime.datetime.now(datetime.UTC).isoformat(),
                 "last_full_week": last_full_week,
             },
             fp,

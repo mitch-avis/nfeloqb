@@ -458,7 +458,7 @@ class AirtableWrapper:
         ].copy()
         # determine write
         if len(delta) > 0:
-            print("     Found {0} new QBs".format(len(delta)))
+            print(f"     Found {len(delta)} new QBs")
             # write
             self.write_qbs(delta)
             # update existing qbs so its accurate
@@ -482,7 +482,7 @@ class AirtableWrapper:
         ].copy()
         # determine write
         if len(delta) > 0:
-            print("     Found {0} new QB options".format(len(delta)))
+            print(f"     Found {len(delta)} new QB options")
             # write
             self.write_qb_options(delta["qb_id"].unique().tolist())
         else:
@@ -691,7 +691,7 @@ class AirtableWrapper:
                                             c for c in starters.columns if c.endswith("_players")
                                         ]
                                     )
-                        except (KeyError, AttributeError, ValueError):
+                        except KeyError, AttributeError, ValueError:
                             pass
 
                     # Build qb_id and last_updated
@@ -810,9 +810,7 @@ class AirtableWrapper:
         self.starters_df = pd.DataFrame(starters_data)
 
     def get_last_update(self):
-        """
-        Returns the timestamp when the starters table was last updated
-        """
+        """Returns the timestamp when the starters table was last updated"""
         if self.disabled:
             # Return 'now' so we don't skip the build locally
             return pd.Timestamp.utcnow().tz_convert("UTC")

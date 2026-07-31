@@ -7,7 +7,6 @@ from nfeloqb.Resources.elo_file_constructor import EloConstructor
 
 def _build_constructor(new_file: pd.DataFrame, games: pd.DataFrame) -> EloConstructor:
     """Construct an EloConstructor instance without running the full model pipeline."""
-
     constructor = object.__new__(EloConstructor)
     constructor.new_file = new_file
     constructor.games = games
@@ -16,7 +15,6 @@ def _build_constructor(new_file: pd.DataFrame, games: pd.DataFrame) -> EloConstr
 
 def test_add_game_id_and_week_tolerates_unresolved_string_ids() -> None:
     """Leave unresolved game IDs missing instead of crashing on pandas string columns."""
-
     new_file = pd.DataFrame(
         {
             "date": ["2026-09-10"],

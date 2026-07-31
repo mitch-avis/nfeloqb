@@ -2,7 +2,7 @@
 import datetime
 import pathlib
 import time
-from typing import Any, Optional, Tuple
+from typing import Any
 
 import numpy
 
@@ -16,9 +16,7 @@ from ..Resources import QBModel
 
 
 class ConfigOptimizer:
-    """
-    Optimizer that returns the optimal value for each parameter in the model config.
-    """
+    """Optimizer that returns the optimal value for each parameter in the model config."""
 
     def __init__(
         self,
@@ -28,7 +26,7 @@ class ConfigOptimizer:
         tol: float = 0.000001,
         step: float = 0.00001,
         method: str = "SLSQP",
-        subset: Optional[list[str]] = None,
+        subset: list[str] | None = None,
         subset_name: str = "subset",
         obj_normalization: int = 30,
         randomize_bgs: bool = False,
@@ -42,7 +40,7 @@ class ConfigOptimizer:
         # optimizer setup
         self.features: list[str] = []
         self.bgs: list[float] = []
-        self.bounds: list[Tuple[float, float]] = []
+        self.bounds: list[tuple[float, float]] = []
         self.tol: float = tol
         self.step: float = step
         self.method: str = method
@@ -52,14 +50,13 @@ class ConfigOptimizer:
         # in-optimization data
         self.round_number: int = 0
         self.optimization_records: list[dict] = []
-        self.best_obj: Optional[float] = None
+        self.best_obj: float | None = None
         # post optimization data
         self.solution: Any = None
         self.optimization_results: dict = {}
 
     def validate_objective(self):
-        """
-        Validates whether the objective is a valid option returned
+        """Validates whether the objective is a valid option returned
         by the scored record.
         """
         if self.objective_name not in ["mae", "mae_first_16", "mae_backup"]:
@@ -69,21 +66,15 @@ class ConfigOptimizer:
             )
 
     def normalize_param(self, value: float, param: ModelParam) -> float:
-        """
-        Normalize a parameter to a value between 0 and 1.
-        """
+        """Normalize a parameter to a value between 0 and 1."""
         return (value - param.opti_min) / (param.opti_max - param.opti_min)
 
     def denormalize_param(self, value: float, param: ModelParam) -> float:
-        """
-        Denormalize a parameter from a value between 0 and 1.
-        """
+        """Denormalize a parameter from a value between 0 and 1."""
         return value * (param.opti_max - param.opti_min) + param.opti_min
 
     def denormalize_optimizer_values(self, x: list[float]) -> dict:
-        """
-        Denormalizes an optimizer values list into a config dictionary.
-        """
+        """Denormalizes an optimizer values list into a config dictionary."""
         # start with a copy of the config
         local_config = self.config.values.copy()
         # update the config with the new values that are being optimized
@@ -94,8 +85,7 @@ class ConfigOptimizer:
         return local_config
 
     def init_features(self):
-        """
-        Initialize the features, bgs, and bounds for the optimizer.
+        """Initialize the features, bgs, and bounds for the optimizer.
         Allows for a subset of features to be optimized if a subset is provided.
         """
         for k, v in self.config.params.items():
@@ -110,9 +100,7 @@ class ConfigOptimizer:
             self.bounds.append((0, 1))  # all features are normalized
 
     def objective(self, x: list[float]) -> float:
-        """
-        Objective function for the optimizer.
-        """
+        """Objective function for the optimizer."""
         # increment the round number
         self.round_number += 1
         # initialize a QBModel
@@ -140,10 +128,7 @@ class ConfigOptimizer:
         self.optimization_records.append(scored_record)
         # save the record if it is a new best, or if it an interval of 100 rounds
         save_record = False
-        if self.best_obj is None:
-            self.best_obj = scored_record[self.objective_name]
-            save_record = True
-        elif scored_record[self.objective_name] < self.best_obj:
+        if self.best_obj is None or scored_record[self.objective_name] < self.best_obj:
             self.best_obj = scored_record[self.objective_name]
             save_record = True
         if self.round_number % 100 == 0:
@@ -159,9 +144,7 @@ class ConfigOptimizer:
         return scored_record[self.objective_name] / self.obj_normalization
 
     def update_config(self, x: list[float]):
-        """
-        Update the config with the new values and save the result.
-        """
+        """Update the config with the new values and save the result."""
         # create the updated config
         updated_config = self.denormalize_optimizer_values(x)
         # apply additional rounding
@@ -175,9 +158,7 @@ class ConfigOptimizer:
         # self.save_result()
 
     def optimize(self, save_result: bool = True, update_config: bool = False):
-        """
-        Core optimization function.
-        """
+        """Core optimization function."""
         # run the optimizer
         # start timer
         start_time = float(time.time())
@@ -213,8 +194,7 @@ class ConfigOptimizer:
             self.update_config(solution.x)
 
     def get_best_record(self) -> dict:
-        """
-        Gets the best record from the stored optimization records. Since the final optimization
+        """Gets the best record from the stored optimization records. Since the final optimization
         result does not have the same level of detail, this function is useful for getting the
         best config, along with the rmse and mae, and the corresponding values for
         simple rolling average models that can be used for giving context on error magnitude.

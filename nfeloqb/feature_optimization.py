@@ -13,8 +13,7 @@ from .Resources import DataLoader
 
 
 def optimize_config_subsets(save_result: bool = True, update_config: bool = False):
-    """
-    Optimizes the config as defined in the model_config.json file, using subesets
+    """Optimizes the config as defined in the model_config.json file, using subesets
     for better optimization results
     """
     # load config
@@ -82,12 +81,13 @@ def optimize_config_subsets(save_result: bool = True, update_config: bool = Fals
 
 
 def optimize_config(save_result: bool = True, update_config: bool = False):
-    """
-    Optimizes the config as defined in the model_config.json file.
+    """Optimizes the config as defined in the model_config.json file.
 
     Parameters
+    ----------
     * save_result : bool - Whether to save the result to a csv file.
     * update_config : bool - Whether to update the model_config.json file with the optimized values.
+
     """
     # load config
     package_folder = pathlib.Path(__file__).parent.parent.resolve()
@@ -99,8 +99,7 @@ def optimize_config(save_result: bool = True, update_config: bool = False):
 
 
 def optimize_config_subsets_with_rand(rounds: int = 25):
-    """
-    Optimizes the config as defined in the model_config.json file, using subesets
+    """Optimizes the config as defined in the model_config.json file, using subesets
     for better optimization results AND using rounds of randomized best guesses to
     explore global optimization and validate whether the optimizer is getting
     stuck due to local minima.
@@ -182,8 +181,7 @@ def optimize_config_subsets_with_rand(rounds: int = 25):
 
 
 def optimize_config_with_rand(rounds: int = 100, subset_names: list[str] = None):  # type: ignore
-    """
-    Optimizes the config as defined in the model_config.json file, using rounds of
+    """Optimizes the config as defined in the model_config.json file, using rounds of
     randomized best guesses to explore global optimization and validate whether
     the optimizer is getting stuck due to local minima.
     """

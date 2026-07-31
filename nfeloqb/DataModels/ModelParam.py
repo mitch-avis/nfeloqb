@@ -3,9 +3,7 @@ from dataclasses import asdict, dataclass
 
 @dataclass
 class ModelParam:
-    """
-    Dataclass for a model parameter, which compose the ModelConfig.
-    """
+    """Dataclass for a model parameter, which compose the ModelConfig."""
 
     param_name: str
     value: float
@@ -15,21 +13,15 @@ class ModelParam:
 
     @classmethod
     def from_dict(cls, dict_data):
-        """
-        Init a ModelParam from a dict object.
-        """
+        """Init a ModelParam from a dict object."""
         return cls(**dict_data)
 
     def asdict(self):
-        """
-        Return a dict representation of the ModelParam.
-        """
+        """Return a dict representation of the ModelParam."""
         return asdict(self)
 
     def as_config_dict(self):
-        """
-        Returns the param in a format for the config json file.
-        """
+        """Returns the param in a format for the config json file."""
         return {
             "value": self.value,
             "description": self.description,

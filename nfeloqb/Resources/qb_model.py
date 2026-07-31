@@ -1,7 +1,7 @@
 # Built-ins
 import pathlib
 import time
-from typing import Any, Tuple
+from typing import Any
 
 import numpy
 
@@ -92,9 +92,7 @@ class QBModel:
         return self.teams[team]
 
     def get_qb(self, row):
-        """
-        Retrives a QB object from storage, or creates it if it doesn't exist
-        """
+        """Retrives a QB object from storage, or creates it if it doesn't exist"""
         if row["player_id"] not in self.qbs:
             # init the qb if it doesn't exist
             self.qbs[row["player_id"]] = QB(
@@ -110,20 +108,22 @@ class QBModel:
         # retieve the qb from storage
         return self.qbs[row["player_id"]]
 
-    def get_objects(self, row) -> Tuple[QB, Team, Team]:
-        """
-        Helper to retrive QB and Team objects while handling object creation, regression, and
+    def get_objects(self, row) -> tuple[QB, Team, Team]:
+        """Helper to retrive QB and Team objects while handling object creation, regression, and
         inter-object adjustments (ie team adjustment on the QB). This is used internally by the
         model to init populate a new game with necessary information about the QB and teams, but it
         is also used externally by the Elo file constructor. Since it touches state, external use
         should not be used iteratively.
 
-        Parameters:
+        Parameters
+        ----------
         * row: dict - a game df row, or a dict simulating a game df row. Minimum required fields:
             player_id, team, opponent, season
 
-        Returns:
+        Returns
+        -------
         * tuple - A tuple containing the QB and Team objects
+
         """
         # get objects and init as necessary using the get_X functions
         qb = self.get_qb(row)
@@ -159,9 +159,7 @@ class QBModel:
     # MODEL FUNCTIONS
     ###########
     def run_model(self):
-        """
-        Iters through the games df, updates states, and saves the output
-        """
+        """Iters through the games df, updates states, and saves the output"""
         # set a start epoch time
         start_time = time.time()
         # clear out any existing values

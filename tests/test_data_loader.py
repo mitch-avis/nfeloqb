@@ -7,7 +7,6 @@ from nfeloqb.Resources.data_loader import DataLoader
 
 def _build_loader(games: pd.DataFrame) -> DataLoader:
     """Construct a DataLoader instance without triggering live data pulls."""
-
     loader = object.__new__(DataLoader)
     loader.db = {"games": games}
     loader.games = None
@@ -16,7 +15,6 @@ def _build_loader(games: pd.DataFrame) -> DataLoader:
 
 def test_add_game_data_uses_game_id_from_games_index() -> None:
     """Join game metadata when the loaded games frame stores game_id in the index."""
-
     games = pd.DataFrame(
         {
             "season": [2025],
@@ -52,7 +50,6 @@ def test_add_game_data_uses_game_id_from_games_index() -> None:
 
 def test_add_game_data_preserves_existing_game_id_column() -> None:
     """Keep working when game_id is already exposed as a regular column."""
-
     games = pd.DataFrame(
         {
             "game_id": ["2025_01_CAR_ATL"],

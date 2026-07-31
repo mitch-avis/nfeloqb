@@ -1,7 +1,6 @@
 # Built-in
 import math
 from dataclasses import dataclass, field
-from typing import Optional
 
 # Packages
 import pandas as pd
@@ -16,15 +15,13 @@ from .Utilities import prog_disc, s_curve
 
 @dataclass
 class QB:
-    """
-    An object that contains state about a quarterback
-    """
+    """An object that contains state about a quarterback"""
 
     # initing meta
     player_id: str
     player_name: str
     config: ModelConfig
-    draft_number: Optional[int]
+    draft_number: int | None
     inital_league_avg: float
     inital_team_avg: float
     first_game_date: str
@@ -38,15 +35,14 @@ class QB:
     season_team_adjs_alotted: int = field(init=False)
     season_team_adjs_received: int = field(init=False)
     season_player_adjs_received: int = field(init=False)
-    last_game_date: Optional[str] = field(init=False)
-    last_game_season: Optional[int] = field(init=False)
-    last_game_team: Optional[str] = field(init=False)
+    last_game_date: str | None = field(init=False)
+    last_game_season: int | None = field(init=False)
+    last_game_team: str | None = field(init=False)
     # extra
     params: dict = field(init=False)
 
     def __post_init__(self):
-        """
-        Check that the QB was created successfully. QB objects must be created via
+        """Check that the QB was created successfully. QB objects must be created via
         the create class method so that league context can be used to set initial values.
         If this was not done, an error is raised
         """
@@ -89,9 +85,7 @@ class QB:
         self.last_game_team = None
 
     def as_record(self) -> dict:
-        """
-        Returns the QB's state as a dictionary
-        """
+        """Returns the QB's state as a dictionary"""
         return {
             "player_id": self.player_id,
             "player_name": self.player_name,
@@ -112,15 +106,17 @@ class QB:
         self,
         team_state: Team,
     ) -> float:
-        """
-        Retrieve the QBs current values, while accounting for adjustments that should be made due
+        """Retrieve the QBs current values, while accounting for adjustments that should be made due
         to how other QBs on the team may be performing
 
-        Parameters:
+        Parameters
+        ----------
         * team_state: The state of the team that the QB is on
 
-        Returns:
+        Returns
+        -------
         * The QBs current value, accounting for adjustments made to other QBs on the team
+
         """
         # determine if this QB is a backup and should be adjusted
         if self.season_starts == 0 and team_state.season_adjs != 0:
@@ -145,18 +141,20 @@ class QB:
         return self.current_value
 
     def update_value(self, value: float, proj: float, gameday: str, season: int, team: str) -> None:
-        """
-        Updates the QB's state after a game
+        """Updates the QB's state after a game
 
-        Parameters:
+        Parameters
+        ----------
         * value: The value of the QB's performance
         * proj: The projected value of the QB's performance
         * gameday: The date of the game
         * season: The season of the game
         * team: The team the QB is on
 
-        Returns:
+        Returns
+        -------
         * None
+
         """
         # update the last game date and season
         self.last_game_date = gameday
@@ -204,16 +202,18 @@ class QB:
         self,
         prev_season_league_avg: float,
     ) -> None:
-        """
-        Regresses the QB's value to a combination of their career average and
+        """Regresses the QB's value to a combination of their career average and
         the leauge average. Season based states are also reset.
 
-        Parameters:
+        Parameters
+        ----------
         * prev_season_league_avg: The league average from the previous season
         * prev_season_team_avg: The team average from the previous season
 
-        Returns:
+        Returns
+        -------
         * None
+
         """
         # remove team based adjustments received during the season
         self.current_value = self.current_value - self.season_team_adjs_received

@@ -441,9 +441,7 @@ class EloConstructor:
             self.new_file = self.new_file.reset_index(drop=True)
 
     def add_game_id_and_week(self):
-        """
-        Adds fields like week, and game id for easier joins down the road
-        """
+        """Adds fields like week, and game id for easier joins down the road"""
         if self.new_file is None:
             msg = "new_file must be created before adding game ids and weeks"
             raise ValueError(msg)
