@@ -1,10 +1,14 @@
+"""Build the metadata export that maps Elo quarterback names to GSIS player records."""
+
 # built in
 import json
 import os
 import pathlib
+from typing import Any, cast
 
 import nfelodcm as dcm
 import numpy
+import pandas as pd
 
 ## Temporary direct pull until nfelodcm supports windowed/latest iter pulls ##
 ROSTER_DOWNLOAD_URL = (
@@ -12,13 +16,18 @@ ROSTER_DOWNLOAD_URL = (
 )
 
 
-# external
-import pandas as pd
+def _rename_columns(df: Any, rename_map: dict[str, str]) -> pd.DataFrame:
+    """Return a dataframe copy with selected columns renamed."""
+    renamed = pd.DataFrame(df).copy()
+    renamed.columns = [rename_map.get(str(column), str(column)) for column in renamed.columns]
+    return renamed
 
 
 class MetaConstructor:
-    """Creates a df that combines meta data with id mappings across historic 538/nfelo names
-    and gsis ids where available
+    """Create the metadata dataframe used to map historic Elo names to GSIS identifiers.
+
+    The generated export combines historical Elo quarterback names, nflverse player metadata, and
+    curated overrides required by downstream consumers.
     """
 
     def __init__(
@@ -28,16 +37,16 @@ class MetaConstructor:
         # new_file from a constructor that has run construct_elo_file()
         elo_file: pd.DataFrame,
     ):
+        """Initialize the metadata constructor with player and Elo inputs."""
         self.players = players
         self.elo_file = elo_file
         # additional
         self.package_loc = pathlib.Path(__file__).parent.parent.parent.resolve()
-        self.repl = json.load(
-            open(
-                f"{self.package_loc}/nfeloqb/Manual Data/name_id_repl.json",
-                encoding="utf-8",
-            )
-        )
+        with open(
+            f"{self.package_loc}/nfeloqb/Manual Data/name_id_repl.json",
+            encoding="utf-8",
+        ) as replacement_file:
+            self.repl = json.load(replacement_file)
         self.missing_draft_data = pd.read_csv(
             f"{self.package_loc}/nfeloqb/Manual Data/missing_draft_data.csv",
             index_col=0,
@@ -45,24 +54,25 @@ class MetaConstructor:
         self.gen_file()
 
     def get_538_qbs(self):
-        """Creates a list of all qbs that are in the elo file, replaceing where necessary
-        to ensure downstream merge
+        """Return Elo quarterbacks after applying the curated name replacements.
+
+        This keeps the downstream join aligned with the names used by the player feed.
         """
         flat_df = pd.concat(
             [
-                self.elo_file[["qb1"]].rename(columns={"qb1": "name_id"}).copy(),
-                self.elo_file[["qb2"]].rename(columns={"qb2": "name_id"}).copy(),
+                _rename_columns(self.elo_file[["qb1"]], {"qb1": "name_id"}),
+                _rename_columns(self.elo_file[["qb2"]], {"qb2": "name_id"}),
             ]
         )
         flat_df = flat_df[~pd.isnull(flat_df["name_id"])]
         # change the name id for mapping
-        flat_df["name_id"] = flat_df["name_id"].replace(self.repl["elo_repl"])
+        flat_df["name_id"] = cast(Any, flat_df["name_id"]).replace(self.repl["elo_repl"])
         flat_df = flat_df.drop_duplicates()
         # return
         return flat_df
 
     def get_fastr_qbs(self):
-        """Gets fastr qbs and filters down to relevant columns. Applies mapping"""
+        """Return quarterback rows from the player feed with the required name mappings."""
         # isolate qbs
         qbs = self.players[
             # QBs
@@ -78,7 +88,7 @@ class MetaConstructor:
             )
         ].copy()
         # filter to essential fields based on drizzle schema requirements
-        qbs = (
+        qbs = _rename_columns(
             qbs[
                 [
                     "gsis_id",
@@ -99,15 +109,12 @@ class MetaConstructor:
                     "draft_club",
                     "headshot",
                 ]
-            ]
-            .rename(
-                columns={
-                    "college_name": "college",
-                    "draft_club": "draft_team",
-                    "headshot": "headshot_url",
-                }
-            )
-            .copy()
+            ],
+            {
+                "college_name": "college",
+                "draft_club": "draft_team",
+                "headshot": "headshot_url",
+            },
         )
         # perform replacement on name
         qbs["display_name"] = qbs["display_name"].replace(self.repl["fastr_repl"])
@@ -116,7 +123,7 @@ class MetaConstructor:
         return qbs
 
     def add_missing_draft_data(self, df):
-        """Adds missing draft data to the fastr df"""
+        """Fill missing draft fields from the curated draft backfill file."""
         # load missing draft data
         missing_draft = pd.read_csv(
             f"{self.package_loc}/nfeloqb/Manual Data/missing_draft_data.csv",
@@ -127,16 +134,17 @@ class MetaConstructor:
         # add missing draft data
         df = pd.merge(
             df,
-            missing_draft[
-                ["player_id", "rookie_year", "draft_number", "entry_year", "birth_date"]
-            ].rename(
-                columns={
+            _rename_columns(
+                missing_draft[
+                    ["player_id", "rookie_year", "draft_number", "entry_year", "birth_date"]
+                ],
+                {
                     "player_id": "gsis_id",
                     "rookie_year": "rookie_year_fill",
                     "draft_number": "draft_number_fill",
                     "entry_year": "entry_year_fill",
                     "birth_date": "birth_date_fill",
-                }
+                },
             ),
             on="gsis_id",
             how="left",
@@ -154,12 +162,12 @@ class MetaConstructor:
             ]
         )
         # change birth date to dob
-        df = df.rename(columns={"birth_date": "dob"})
+        df = _rename_columns(df, {"birth_date": "dob"})
         # return
         return df
 
     def add_manual_data(self, df):
-        """Adds manual data to the condensed df"""
+        """Apply curated manual metadata overrides to the merged dataframe."""
         # load manual data
         # check that its there
         if not os.path.exists(f"{self.package_loc}/nfeloqb/Manual Data/manual_data.csv"):
@@ -172,7 +180,7 @@ class MetaConstructor:
             return df
         # prep manual for merge
         fill_cols = [col for col in manual_data.columns if col != "name_id"]
-        manual_data = manual_data.rename(columns={col: f"{col}_fill" for col in fill_cols})
+        manual_data = _rename_columns(manual_data, {col: f"{col}_fill" for col in fill_cols})
         # merge
         df = pd.merge(df, manual_data[["name_id"] + fill_cols], on="name_id", how="left")
         # fill in missing data
@@ -184,7 +192,7 @@ class MetaConstructor:
         return df
 
     def get_latest_roster_status(self):
-        """Pulls current-season roster status from nflverse.
+        """Pull current-season roster status from nflverse.
 
         Temporary direct HTTP pull until nfelodcm supports windowed/latest
         iter pulls for the rosters table.
@@ -193,10 +201,11 @@ class MetaConstructor:
         roster = pd.read_csv(ROSTER_DOWNLOAD_URL.format(season=season))
         roster = roster[~pd.isnull(roster["gsis_id"])]
         roster = roster.groupby("gsis_id").tail(1)
-        return roster[["gsis_id", "status"]].rename(columns={"status": "roster_status"})
+        return _rename_columns(roster[["gsis_id", "status"]], {"status": "roster_status"})
 
     def apply_roster_status(self, df, roster_status):
-        """Overwrites status from current-season roster presence.
+        """Overwrite status using current-season roster presence.
+
         Players with a gsis_id not on the roster are marked RET.
         Elo-only historic rows (no gsis_id) keep their existing status.
         """
@@ -217,7 +226,7 @@ class MetaConstructor:
         return df
 
     def gen_file(self):
-        """Calls the methods above to generate the final file"""
+        """Generate and write the final metadata export."""
         # get 538 qbs
         qb_elo = self.get_538_qbs()
         # get fastr qbs
