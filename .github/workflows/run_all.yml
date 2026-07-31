@@ -19,18 +19,18 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: checkout
-        uses: actions/checkout
+        uses: actions/checkout@v7
 
       - name: setup python
-        uses: actions/setup-python
+        uses: actions/setup-python@v7
         with:
           python-version: '3.14'
 
       - name: setup uv
-        uses: astral-sh/setup-uv
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
           prune-cache: true
@@ -59,7 +59,7 @@ jobs:
 
       - name: push changes
         if: steps.verify_diff.outputs.changed == 'true'
-        uses: ad-m/github-push-action
+        uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: main
