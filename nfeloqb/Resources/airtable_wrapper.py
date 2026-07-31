@@ -3,6 +3,7 @@ import math
 import os
 import pathlib
 import time
+from contextlib import suppress
 from typing import Any, cast
 from urllib.error import HTTPError, URLError
 
@@ -48,6 +49,18 @@ def _rename_columns(df: Any, rename_map: dict[str, str]) -> pd.DataFrame:
     renamed = pd.DataFrame(df).copy()
     renamed.columns = [rename_map.get(str(column), str(column)) for column in renamed.columns]
     return renamed
+
+
+def _candidate_depth_chart_seasons(now_utc: pd.Timestamp | None = None) -> list[int]:
+    """Return the preferred current-season depth chart years to query."""
+    season_clock = now_utc if now_utc is not None else pd.Timestamp.now(tz="UTC")
+    with suppress(KeyError):
+        season_clock = season_clock.tz_convert("US/Eastern")
+    # Some local environments do not bundle tzdata. Fall back to UTC rather than
+    # skipping depth charts and incorrectly using the previous played-game starter.
+
+    primary_season = season_clock.year if season_clock.month >= 7 else (season_clock.year - 1)
+    return [primary_season, primary_season - 1]
 
 
 class AirtableWrapper:
@@ -574,15 +587,9 @@ class AirtableWrapper:
             # Prefer nflverse depth charts (QB1) when Airtable is disabled
             if nfl is not None:
                 try:
-                    # Determine current season
-                    now_utc = pd.Timestamp.utcnow().tz_convert("UTC")
-                    now_et = now_utc.tz_convert("US/Eastern")
-
-                    # NFL season spans fall->winter; in Jan/Feb the season year is typically
-                    # the prior year.
-                    # Use a pragmatic cutoff so we request a year that exists in nflverse datasets.
-                    primary_season = now_et.year if now_et.month >= 7 else (now_et.year - 1)
-                    candidate_seasons = [primary_season, primary_season - 1]
+                    # Determine current season using a timezone-safe fallback for local runs.
+                    now_utc = pd.Timestamp.now(tz="UTC")
+                    candidate_seasons = _candidate_depth_chart_seasons(now_utc)
 
                     # Load depth charts for the best-available season
                     depth_charts = None
