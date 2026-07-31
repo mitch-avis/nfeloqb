@@ -1,3 +1,5 @@
+"""Expose the primary resource-layer classes used by the nfeloqb pipeline."""
+
 from .airtable_wrapper import AirtableWrapper
 from .data_loader import DataLoader
 from .elo import Elo

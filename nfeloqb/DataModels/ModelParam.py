@@ -1,3 +1,5 @@
+"""Define the typed representation of a single configurable model parameter."""
+
 from dataclasses import asdict, dataclass
 
 
@@ -13,15 +15,15 @@ class ModelParam:
 
     @classmethod
     def from_dict(cls, dict_data):
-        """Init a ModelParam from a dict object."""
+        """Create a model parameter from a dictionary."""
         return cls(**dict_data)
 
     def asdict(self):
-        """Return a dict representation of the ModelParam."""
+        """Return a dictionary representation of the model parameter."""
         return asdict(self)
 
     def as_config_dict(self):
-        """Returns the param in a format for the config json file."""
+        """Return the parameter in the JSON config file shape."""
         return {
             "value": self.value,
             "description": self.description,

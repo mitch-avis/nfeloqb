@@ -1,12 +1,35 @@
+"""Provide development-only comparison helpers for nfeloqb exports and FiveThirtyEight data."""
+
 import pathlib
+from typing import cast
 
 import nfelodcm as dcm
 import numpy
 import pandas as pd
 
 
+def _select_with_columns(
+    df: pd.DataFrame,
+    source_columns: list[str],
+    target_columns: list[str],
+) -> pd.DataFrame:
+    """Return a copy of selected columns with the provided output column names."""
+    selected = df[source_columns].copy()
+    selected.columns = target_columns
+    return cast(pd.DataFrame, selected)
+
+
+def _suffix_selected_columns(df: pd.DataFrame, columns: list[str], suffix: str) -> pd.DataFrame:
+    """Return a copy with the selected column names suffixed."""
+    renamed = df.copy()
+    renamed.columns = [
+        f"{column}{suffix}" if column in columns else column for column in renamed.columns
+    ]
+    return renamed
+
+
 def compare_qb_file(ext_file_path: str):
-    """Comapres a QB file to the current QB file"""
+    """Compare an external QB file to the current local QB export."""
     # comparison columns
     comparison_cols = ["value_pre", "value_post", "adj", "game_value"]
     # establish path
@@ -15,12 +38,13 @@ def compare_qb_file(ext_file_path: str):
     ext = pd.read_csv(ext_file_path)
     cur = pd.read_csv(f"{root_loc}/qb_elos.csv")
     # constrain to after the nfelo model took over
-    ext = ext[ext["season"] >= 2023].copy()
-    cur = cur[cur["season"] >= 2023].copy()
+    ext = cast(pd.DataFrame, ext[ext["season"] >= 2023].copy())
+    cur = cast(pd.DataFrame, cur[cur["season"] >= 2023].copy())
     # flatten
     ext = pd.concat(
         [
-            ext[
+            _select_with_columns(
+                ext,
                 [
                     "qb1",
                     "season",
@@ -29,17 +53,11 @@ def compare_qb_file(ext_file_path: str):
                     "qb1_value_post",
                     "qb1_adj",
                     "qb1_game_value",
-                ]
-            ].rename(
-                columns={
-                    "qb1": "qb",
-                    "qb1_value_pre": "value_pre",
-                    "qb1_value_post": "value_post",
-                    "qb1_adj": "adj",
-                    "qb1_game_value": "game_value",
-                }
+                ],
+                ["qb", "season", "game_id", "value_pre", "value_post", "adj", "game_value"],
             ),
-            ext[
+            _select_with_columns(
+                ext,
                 [
                     "qb2",
                     "season",
@@ -48,21 +66,15 @@ def compare_qb_file(ext_file_path: str):
                     "qb2_value_post",
                     "qb2_adj",
                     "qb2_game_value",
-                ]
-            ].rename(
-                columns={
-                    "qb2": "qb",
-                    "qb2_value_pre": "value_pre",
-                    "qb2_value_post": "value_post",
-                    "qb2_adj": "adj",
-                    "qb2_game_value": "game_value",
-                }
+                ],
+                ["qb", "season", "game_id", "value_pre", "value_post", "adj", "game_value"],
             ),
         ]
     )
     cur = pd.concat(
         [
-            cur[
+            _select_with_columns(
+                cur,
                 [
                     "qb1",
                     "season",
@@ -71,17 +83,11 @@ def compare_qb_file(ext_file_path: str):
                     "qb1_value_post",
                     "qb1_adj",
                     "qb1_game_value",
-                ]
-            ].rename(
-                columns={
-                    "qb1": "qb",
-                    "qb1_value_pre": "value_pre",
-                    "qb1_value_post": "value_post",
-                    "qb1_adj": "adj",
-                    "qb1_game_value": "game_value",
-                }
+                ],
+                ["qb", "season", "game_id", "value_pre", "value_post", "adj", "game_value"],
             ),
-            cur[
+            _select_with_columns(
+                cur,
                 [
                     "qb2",
                     "season",
@@ -90,22 +96,14 @@ def compare_qb_file(ext_file_path: str):
                     "qb2_value_post",
                     "qb2_adj",
                     "qb2_game_value",
-                ]
-            ].rename(
-                columns={
-                    "qb2": "qb",
-                    "qb2_value_pre": "value_pre",
-                    "qb2_value_post": "value_post",
-                    "qb2_adj": "adj",
-                    "qb2_game_value": "game_value",
-                }
+                ],
+                ["qb", "season", "game_id", "value_pre", "value_post", "adj", "game_value"],
             ),
         ]
     )
     # rename
-    for col in comparison_cols:
-        ext = ext.rename(columns={col: f"{col}_ext"})
-        cur = cur.rename(columns={col: f"{col}_cur"})
+    ext = _suffix_selected_columns(ext, comparison_cols, "_ext")
+    cur = _suffix_selected_columns(cur, comparison_cols, "_cur")
     # merge
     merged = pd.merge(ext, cur, on=["qb", "season", "game_id"], how="left")
     # add start number and season start number
@@ -120,7 +118,9 @@ def compare_qb_file(ext_file_path: str):
     print(f"Missing vs external: {len(merged[merged['value_pre_ext'].isna()]) / len(merged)}")
     print(f"MAE: {merged['value_pre_abs_diff'].mean()}")
     print("20 Largest differences in pre-game value:")
-    for _, row in merged.sort_values(by="value_pre_abs_diff", ascending=False).head(20).iterrows():
+    largest_diffs = merged.sort_values(by="value_pre_abs_diff", ascending=False).head(20)
+    for _, raw_row in largest_diffs.iterrows():
+        row = raw_row.to_dict()
         sign = "+" if row["value_pre_diff"] > 0 else "-"
         print(
             f"{row['qb']}, Start {row['start_number']}: "
@@ -154,7 +154,7 @@ def compare_qb_file(ext_file_path: str):
 
 
 def compare_to_538():
-    """Compares the nfelo QB predictions to the 538 QB predictions for 2009 to 2022"""
+    """Compare nfelo quarterback predictions to FiveThirtyEight's historical values."""
     # get the flattened model data
     # establish path
     root_loc = pathlib.Path(__file__).parent.parent.resolve()
@@ -164,25 +164,22 @@ def compare_to_538():
     qbs_538 = db["qbelo"].copy()
     # constraint to period where 538 was active and give
     # buffer past 1999 to allow model to catch up from inits
-    qbs_538 = qbs_538[(qbs_538["season"] >= 2002) & (qbs_538["season"] <= 2022)].copy()
+    qbs_538 = cast(
+        pd.DataFrame,
+        qbs_538[(qbs_538["season"] >= 2002) & (qbs_538["season"] <= 2022)].copy(),
+    )
     # flatten
     qbs_538 = pd.concat(
         [
-            qbs_538[["game_id", "qb1", "qb1_value_pre", "qb1_value_post", "qb1_game_value"]].rename(
-                columns={
-                    "qb1": "player_name",
-                    "qb1_value_pre": "value_pre_538",
-                    "qb1_value_post": "value_post_538",
-                    "qb1_game_value": "game_value_538",
-                }
+            _select_with_columns(
+                qbs_538,
+                ["game_id", "qb1", "qb1_value_pre", "qb1_value_post", "qb1_game_value"],
+                ["game_id", "player_name", "value_pre_538", "value_post_538", "game_value_538"],
             ),
-            qbs_538[["game_id", "qb2", "qb2_value_pre", "qb2_value_post", "qb2_game_value"]].rename(
-                columns={
-                    "qb2": "player_name",
-                    "qb2_value_pre": "value_pre_538",
-                    "qb2_value_post": "value_post_538",
-                    "qb2_game_value": "game_value_538",
-                }
+            _select_with_columns(
+                qbs_538,
+                ["game_id", "qb2", "qb2_value_pre", "qb2_value_post", "qb2_game_value"],
+                ["game_id", "player_name", "value_pre_538", "value_post_538", "game_value_538"],
             ),
         ]
     )

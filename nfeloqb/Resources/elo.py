@@ -1,7 +1,15 @@
 import pathlib
+from typing import Any, cast
 
 import numpy
 import pandas as pd
+
+
+def _rename_columns(df: pd.DataFrame, rename_map: dict[str, str]) -> pd.DataFrame:
+    """Return a dataframe copy with selected columns renamed."""
+    renamed = df.copy()
+    renamed.columns = [rename_map.get(str(column), str(column)) for column in renamed.columns]
+    return renamed
 
 
 class Elo:
@@ -52,7 +60,7 @@ class Elo:
         # add fields and HFA to games
         hfa = self.game.groupby(["season"]).agg(avg_home_mov=("result", "mean")).reset_index()
         # calc 10 year rolling avg shifted back one year
-        hfa["avg_home_mov"] = hfa["avg_home_mov"].rolling(self.hfa_roll).mean().shift(1)
+        hfa["avg_home_mov"] = cast(Any, hfa["avg_home_mov"]).rolling(self.hfa_roll).mean().shift(1)
         # fill missing w/ 2.5
         hfa["avg_home_mov"] = hfa["avg_home_mov"].fillna(2.5)
         # translate to an elo
@@ -74,20 +82,24 @@ class Elo:
     def add_qbs_to_new_games(self):
         # add qb adjs to the game file
         # add home qb
+        home_qbs = _rename_columns(
+            self.qb_df[["game_id", "team", "qb_adj"]],
+            {"team": "home_team", "qb_adj": "home_qb_elo_adj"},
+        )
         self.game = pd.merge(
             self.game,
-            self.qb_df[["game_id", "team", "qb_adj"]].rename(
-                columns={"team": "home_team", "qb_adj": "home_qb_elo_adj"}
-            ),
+            home_qbs,
             on=["game_id", "home_team"],
             how="left",
         )
         # add away qb
+        away_qbs = _rename_columns(
+            self.qb_df[["game_id", "team", "qb_adj"]],
+            {"team": "away_team", "qb_adj": "away_qb_elo_adj"},
+        )
         self.game = pd.merge(
             self.game,
-            self.qb_df[["game_id", "team", "qb_adj"]].rename(
-                columns={"team": "away_team", "qb_adj": "away_qb_elo_adj"}
-            ),
+            away_qbs,
             on=["game_id", "away_team"],
             how="left",
         )
@@ -109,7 +121,10 @@ class Elo:
     def handle_regression(self):
         # function that updates all offseason elos and incriments current season
         # incriment seaosn
-        self.current_season += 1  # type: ignore
+        if self.current_season is None:
+            msg = "current_season must be initialized before regression"
+            raise ValueError(msg)
+        self.current_season += 1
         # loop through dict
         for team, last_elo in self.current_elos.items():
             # regress to mean

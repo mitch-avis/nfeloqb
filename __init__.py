@@ -1,3 +1,5 @@
+"""Expose the top-level public API for the nfeloqb package."""
+
 from .Development import compare_qb_file, compare_to_538
 from .nfeloqb import (
     DataLoader,

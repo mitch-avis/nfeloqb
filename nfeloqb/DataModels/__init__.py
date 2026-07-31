@@ -1,3 +1,5 @@
+"""Export the public data model classes used by the quarterback pipeline."""
+
 from .GameContext import GameContext
 from .ModelConfig import ModelConfig
 from .ModelParam import ModelParam

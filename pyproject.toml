@@ -86,7 +86,17 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101"] # Use of assert is standard in pytest
+"tests/**/*.py" = ["S101", "D"] # Use of assert is standard in pytest
+"nfeloqb/Optimizer/ConfigOptimizer.py" = ["D", "N999"]
+"nfeloqb/DataModels/GameContext.py" = ["N999"]
+"nfeloqb/DataModels/ModelConfig.py" = ["N999"]
+"nfeloqb/DataModels/ModelParam.py" = ["N999"]
+"nfeloqb/DataModels/QB.py" = ["N999"]
+"nfeloqb/DataModels/Team.py" = ["N999"]
+"nfeloqb/Resources/airtable_wrapper.py" = ["D"]
+"nfeloqb/Resources/data_loader.py" = ["D"]
+"nfeloqb/Resources/elo.py" = ["D"]
+"nfeloqb/feature_optimization.py" = ["D"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["nfeloqb"]

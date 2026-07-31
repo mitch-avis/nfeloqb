@@ -14,6 +14,8 @@ from scipy.optimize import minimize
 from ..DataModels import ModelConfig, ModelParam
 from ..Resources import QBModel
 
+RNG = numpy.random.default_rng()
+
 
 class ConfigOptimizer:
     """Optimizer that returns the optimal value for each parameter in the model config."""
@@ -95,7 +97,7 @@ class ConfigOptimizer:
             self.bgs.append(
                 self.normalize_param(v.value, v)
                 if not self.randomize_bgs
-                else numpy.random.uniform(0, 1)
+                else float(RNG.uniform(0, 1))
             )
             self.bounds.append((0, 1))  # all features are normalized
 

@@ -1,3 +1,5 @@
+"""Provide the local command-line entrypoint for the weekly nfeloqb workflow."""
+
 import os
 import sys
 

@@ -1,3 +1,5 @@
+"""Orchestrate the weekly nfeloqb pipeline from data load through export writes."""
+
 # wrapper for running the pacakge
 # import modules
 import datetime
@@ -6,6 +8,7 @@ import json
 # import env
 import os
 import pathlib
+from typing import Any, cast
 
 # get games for last played
 import nfelodcm as dcm
@@ -32,7 +35,12 @@ except FileNotFoundError, OSError:
     pass
 
 
-def run(perform_starter_update=False, model_only=False, force_run=False):
+def run(
+    perform_starter_update: bool = False,
+    model_only: bool = False,
+    force_run: bool = False,
+) -> QBModel | None:
+    """Run the full weekly quarterback modeling workflow."""
     # load configs and meta
     config = None
     meta = None
@@ -61,32 +69,38 @@ def run(perform_starter_update=False, model_only=False, force_run=False):
     last_full_season, last_full_week = dcm.get_season_state()
     last_full_week = f"{last_full_season}_{last_full_week}"
     # see if update is required
-    if last_package_update is not None and not force_run:
-        # Only apply skip logic when Airtable is enabled
-        if not getattr(at_wrapper, "disabled", False):
-            if (
-                last_starter_change < pd.to_datetime(last_package_update, utc=True)
-                and last_full_week == last_package_week
-            ):
-                return None
+    if (
+        last_package_update is not None
+        and not force_run
+        and not getattr(at_wrapper, "disabled", False)
+        and last_starter_change < pd.to_datetime(last_package_update, utc=True)
+        and last_full_week == last_package_week
+    ):
+        return None
     # load data
     data = DataLoader()
+    if data.model_df is None:
+        msg = "DataLoader did not populate model_df"
+        raise ValueError(msg)
     # run model
     print("Running QB model...")
-    model = QBModel(data.model_df, config)  # type: ignore
+    model = QBModel(data.model_df, config)
     model.run_model()
     if model_only:
         return model
     # update starters
-    at_wrapper.model_df = model.games  # type: ignore
+    cast(Any, at_wrapper).model_df = model.games
     at_wrapper.update_qb_table()
     at_wrapper.update_qb_options()
     # run elo model
     print("Running Elo model...")
+    if data.games is None:
+        msg = "DataLoader did not populate games"
+        raise ValueError(msg)
     elo = Elo(data.games, pd.DataFrame(model.data))
     elo.run()
     # construct elo file
-    constructor = EloConstructor(data.games, model, at_wrapper, elo, package_folder)
+    constructor = EloConstructor(data.games, model, at_wrapper, elo, str(package_folder))
     constructor.construct_elo_file()
     # save flattened qb and team data
     pd.DataFrame(model.data_team).sort_values(
@@ -99,7 +113,10 @@ def run(perform_starter_update=False, model_only=False, force_run=False):
         f"{package_folder}/Other Data/weekly_qb_states.csv", index=False
     )
     # save meta data
-    _ = MetaConstructor(players=data.db["players"], elo_file=constructor.new_file)  # type: ignore
+    if constructor.new_file is None:
+        msg = "EloConstructor did not populate new_file"
+        raise ValueError(msg)
+    _ = MetaConstructor(players=data.db["players"], elo_file=constructor.new_file)
     # update the last updated timestamp
     with open(f"{package_folder}/package_meta.json", "w", encoding="utf-8") as fp:
         json.dump(

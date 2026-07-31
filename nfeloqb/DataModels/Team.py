@@ -1,3 +1,5 @@
+"""Define the mutable team state used while the quarterback model iterates games."""
+
 from dataclasses import dataclass, field
 
 from .ModelConfig import ModelConfig
@@ -22,6 +24,7 @@ class Team:
     params: dict = field(init=False)
 
     def __post_init__(self):
+        """Initialize the team's starting offensive and defensive values."""
         # init the values
         # unpack params from config for convenience
         self.params = self.config.values
@@ -30,20 +33,7 @@ class Team:
         self.def_value = 0  # def is a relative measure, so it is initialized to 0
 
     def update_off_value(self, value: float, qb_adj: float, gameday: str, season: int) -> None:
-        """Update the team's offensive value after a game.
-
-        Parameters
-        ----------
-        * value: The value of the team's offensive performance, with def adjusted
-        * qb_adj: The adjustment made to the starting QB's value
-        * gameday: The date of the game
-        * season: The season of the game
-
-        Returns
-        -------
-        * None
-
-        """
+        """Update the team's offensive value after a game."""
         # update the value
         self.off_value = (
             self.params["team_off_sf"] * value + (1 - self.params["team_off_sf"]) * self.off_value
@@ -55,20 +45,7 @@ class Team:
         self.last_game_season_off = season
 
     def update_def_value(self, value: float, gameday: str, season: int) -> None:
-        """Update the team's defensive value after a game.
-
-        Parameters
-        ----------
-        * value: The value of the team's defensive performance, which is measured as the difference
-        between the opposing QB's game value, and their expected value before adjusting for defense.
-        * gameday: The date of the game
-        * season: The season of the game
-
-        Returns
-        -------
-        * None
-
-        """
+        """Update the team's defensive value after a game."""
         self.def_value = (
             self.params["team_def_sf"] * value + (1 - self.params["team_def_sf"]) * self.def_value
         )
@@ -77,18 +54,7 @@ class Team:
         self.last_game_season_def = season
 
     def regress_offense(self, qb_val: float, prev_season_league_avg: float) -> None:
-        """Handle the offseason regression of a team's offensive value.
-
-        Parameters
-        ----------
-        * qb_val: The value of the team's Week 1 starting QB
-        * prev_season_league_avg: The league average value of QBs from the previous season
-
-        Returns
-        -------
-        * None
-
-        """
+        """Handle the offseason regression of a team's offensive value."""
         # normalize the regression coefficients so they are not greater than 1
         total_regression = (
             self.params["team_off_qb_reversion"] + self.params["team_off_league_reversion"]
@@ -111,22 +77,7 @@ class Team:
         self.season_adjs = 0
 
     def regress_defense(self) -> None:
-        """Handle the offseason regression of a team's defensive value. Team defensive value is a
-        measure of how much better or worse a QB performs relative to expectation against a defense.
-        Thus, an average defense would be 0.
-
-        As a result, teams are regressed to 0 each offseason rather than a league average for
-        defensive, which, due to variance, might be more or less than 0.
-
-        Parameters
-        ----------
-        * None
-
-        Returns
-        -------
-        * None
-
-        """
+        """Regress the team's defensive value back toward league-average baseline."""
         self.def_value = (1 - self.params["team_def_reversion"]) * self.def_value + self.params[
             "team_def_reversion"
         ] * 0
