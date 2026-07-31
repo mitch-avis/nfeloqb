@@ -45,6 +45,14 @@ class DataLoader:
         )
         return df
 
+    def normalize_games(self, games):
+        # nflreadpy/nfelodcm may expose game_id as the index instead of a regular column
+        if "game_id" in games.columns:
+            return games.copy()
+        if games.index.name == "game_id":
+            return games.reset_index()
+        return games.copy()
+
     def retrieve_player_meta(self, df):
         # get player meta and add it to the stats
         # will be used for draft position and joining
@@ -133,7 +141,7 @@ class DataLoader:
         # add game data
         try:
             # games will be used in the future so add to class
-            game = self.db["games"]
+            game = self.normalize_games(self.db["games"])
             self.games = game.copy()
             # flatten
             game_flat = pd.concat(
