@@ -4,6 +4,14 @@ import os
 import pathlib
 
 import numpy
+import nfelodcm as dcm
+
+
+## Temporary direct pull until nfelodcm supports windowed/latest iter pulls ##
+ROSTER_DOWNLOAD_URL = (
+    "https://github.com/nflverse/nflverse-data/releases/download/rosters/roster_{season}.csv"
+)
+
 
 # external
 import pandas as pd
@@ -184,6 +192,41 @@ class MetaConstructor:
         # return
         return df
 
+    def get_latest_roster_status(self):
+        """
+        Pulls current-season roster status from nflverse.
+
+        Temporary direct HTTP pull until nfelodcm supports windowed/latest
+        iter pulls for the rosters table.
+        """
+        season, _ = dcm.get_season_state()
+        roster = pd.read_csv(ROSTER_DOWNLOAD_URL.format(season=season))
+        roster = roster[~pd.isnull(roster["gsis_id"])]
+        roster = roster.groupby("gsis_id").tail(1)
+        return roster[["gsis_id", "status"]].rename(columns={"status": "roster_status"})
+
+    def apply_roster_status(self, df, roster_status):
+        """
+        Overwrites status from current-season roster presence.
+        Players with a gsis_id not on the roster are marked RET.
+        Elo-only historic rows (no gsis_id) keep their existing status.
+        """
+        df = pd.merge(df, roster_status, on="gsis_id", how="left")
+        # on roster -> use roster status
+        df["status"] = numpy.where(
+            ~pd.isnull(df["roster_status"]),
+            df["roster_status"],
+            df["status"],
+        )
+        # has gsis_id but not on roster -> RET
+        df["status"] = numpy.where(
+            (~pd.isnull(df["gsis_id"])) & (pd.isnull(df["roster_status"])),
+            "RET",
+            df["status"],
+        )
+        df = df.drop(columns=["roster_status"])
+        return df
+
     def gen_file(self):
         """
         Calls the methods above to generate the final file
@@ -215,6 +258,9 @@ class MetaConstructor:
                 "name_id"
             ]:
                 print(f"     {name_id}")
+        # overwrite status from current-season roster
+        roster_status = self.get_latest_roster_status()
+        df = self.apply_roster_status(df, roster_status)
         # add manual data
         df = self.add_manual_data(df)
         df = df.sort_values(by=["name_id"]).reset_index(drop=True)
