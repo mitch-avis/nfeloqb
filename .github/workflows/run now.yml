@@ -18,20 +18,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: setup python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
-          python-version: 3.12
+          python-version: '3.14'
 
-      - name: install packages
+      - name: setup uv
+        uses: astral-sh/setup-uv@v9
+        with:
+          enable-cache: true
+          prune-cache: true
+          python-version: '3.14'
+
+      - name: sync environment
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          uv lock --check
+          uv sync --locked
 
       - name: execute
-        run: python workflow.py run_now
+        run: uv run python workflow.py run_now
 
       - name: Verify changes
         id: verify_diff
