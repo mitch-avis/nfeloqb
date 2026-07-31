@@ -1,3 +1,5 @@
+"""Define the configuration container used by the quarterback model."""
+
 # built ins
 import json
 import pathlib
