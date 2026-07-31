@@ -2,6 +2,7 @@
 # import modules
 import datetime
 import pathlib
+from typing import cast
 
 import pandas as pd
 
@@ -10,6 +11,14 @@ from .Optimizer import ConfigOptimizer
 
 # import resources
 from .Resources import DataLoader
+
+
+def _require_model_df(data: DataLoader) -> pd.DataFrame:
+    """Return the loaded model dataframe, raising if the loader did not populate it."""
+    if data.model_df is None:
+        msg = "DataLoader did not populate model_df"
+        raise ValueError(msg)
+    return data.model_df
 
 
 def optimize_config_subsets(save_result: bool = True, update_config: bool = False):
@@ -21,6 +30,7 @@ def optimize_config_subsets(save_result: bool = True, update_config: bool = Fals
     config = ModelConfig.from_file(f"{package_folder}/model_config.json")
     # get the games data
     data = DataLoader()
+    model_df = _require_model_df(data)
     # define subsets
     subsets = [
         {
@@ -71,11 +81,13 @@ def optimize_config_subsets(save_result: bool = True, update_config: bool = Fals
     ]
     # optimize each subset
     for subset in subsets:
+        subset_fields = cast(list[str], subset["subset"])
+        subset_name = cast(str, subset["subset_name"])
         optimizer = ConfigOptimizer(
-            data=data.model_df,  # type: ignore
+            data=model_df,
             config=config,
-            subset=subset["subset"],
-            subset_name=subset["subset_name"],
+            subset=subset_fields,
+            subset_name=subset_name,
         )
         optimizer.optimize(save_result, update_config)
 
@@ -94,7 +106,7 @@ def optimize_config(save_result: bool = True, update_config: bool = False):
     config = ModelConfig.from_file(f"{package_folder}/model_config.json")
     # get the games data
     data = DataLoader()
-    optimizer = ConfigOptimizer(data.model_df, config)  # type: ignore
+    optimizer = ConfigOptimizer(_require_model_df(data), config)
     optimizer.optimize(save_result, update_config)
 
 
@@ -109,6 +121,7 @@ def optimize_config_subsets_with_rand(rounds: int = 25):
     config = ModelConfig.from_file(f"{package_folder}/model_config.json")
     # get the games data
     data = DataLoader()
+    model_df = _require_model_df(data)
     # define subsets
     subsets = [
         {
@@ -159,15 +172,17 @@ def optimize_config_subsets_with_rand(rounds: int = 25):
     ]
     # optimize each subset
     for subset in subsets:
-        print(f"Optimizing subset: {subset['subset_name']}")
+        subset_fields = cast(list[str], subset["subset"])
+        subset_name = cast(str, subset["subset_name"])
+        print(f"Optimizing subset: {subset_name}")
         best_recs = []
         for i in range(rounds):
             print(f"Round {i + 1} of {rounds}")
             optimizer = ConfigOptimizer(
-                data=data.model_df,  # type: ignore
+                data=model_df,
                 config=config,
-                subset=subset["subset"],
-                subset_name=subset["subset_name"],
+                subset=subset_fields,
+                subset_name=subset_name,
                 randomize_bgs=True,
             )
             optimizer.optimize(False, False)
@@ -176,11 +191,11 @@ def optimize_config_subsets_with_rand(rounds: int = 25):
             df = pd.DataFrame(best_recs)
             parent_dir = pathlib.Path(__file__).parent.resolve()
             date = datetime.datetime.now().strftime("%Y%m%d")
-            filename = f"{date}_{subset['subset_name']}_randomized_bgs.csv"
+            filename = f"{date}_{subset_name}_randomized_bgs.csv"
             df.to_csv(f"{parent_dir}/Optimizer/Results/{filename}.csv")
 
 
-def optimize_config_with_rand(rounds: int = 100, subset_names: list[str] = None):  # type: ignore
+def optimize_config_with_rand(rounds: int = 100, subset_names: list[str] | None = None):
     """Optimizes the config as defined in the model_config.json file, using rounds of
     randomized best guesses to explore global optimization and validate whether
     the optimizer is getting stuck due to local minima.
@@ -192,6 +207,7 @@ def optimize_config_with_rand(rounds: int = 100, subset_names: list[str] = None)
     config = ModelConfig.from_file(f"{package_folder}/model_config.json")
     # get the games data
     data = DataLoader()
+    model_df = _require_model_df(data)
     # define subsets
     subsets = [
         {
@@ -241,18 +257,21 @@ def optimize_config_with_rand(rounds: int = 100, subset_names: list[str] = None)
     ]
     # optimize each subset
     for subset in subsets:
-        if subset["subset_name"] not in subset_names and len(subset_names) > 0:
+        subset_name = cast(str, subset["subset_name"])
+        subset_fields = cast(list[str], subset["subset"])
+        objective_name = cast(str, subset.get("objective", "mae"))
+        if subset_name not in subset_names and len(subset_names) > 0:
             continue
-        print(f"Optimizing subset: {subset['subset_name']}")
+        print(f"Optimizing subset: {subset_name}")
         best_recs = []
         for i in range(rounds):
             print(f"Round {i + 1} of {rounds}")
             optimizer = ConfigOptimizer(
-                data=data.model_df,  # type: ignore
+                data=model_df,
                 config=config,
-                subset=subset["subset"],
-                subset_name=subset["subset_name"],
-                objective_name=subset["objective"] if "objective" in subset else "mae",
+                subset=subset_fields,
+                subset_name=subset_name,
+                objective_name=objective_name,
                 randomize_bgs=True,
             )
             optimizer.optimize(False, False)
@@ -261,5 +280,5 @@ def optimize_config_with_rand(rounds: int = 100, subset_names: list[str] = None)
             df = pd.DataFrame(best_recs)
             parent_dir = pathlib.Path(__file__).parent.resolve()
             date = datetime.datetime.now().strftime("%Y%m%d")
-            filename = f"{date}_{subset['subset_name']}_randomized_bgs.csv"
+            filename = f"{date}_{subset_name}_randomized_bgs.csv"
             df.to_csv(f"{parent_dir}/Optimizer/Results/{filename}.csv")
