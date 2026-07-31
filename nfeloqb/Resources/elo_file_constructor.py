@@ -251,7 +251,7 @@ class EloConstructor:
         if self.next_games is None or len(self.next_games) == 0:
             return
 
-        self.next_games = self.next_games.apply(  # type: ignore
+        self.next_games = self.next_games.apply(
             apply_starters_and_team_values, starter_dict=starter_dict, axis=1
         )
 
@@ -444,6 +444,10 @@ class EloConstructor:
         """
         Adds fields like week, and game id for easier joins down the road
         """
+        if self.new_file is None:
+            msg = "new_file must be created before adding game ids and weeks"
+            raise ValueError(msg)
+
         # replace team names (keep legacy→modern mapping consistent everywhere)
         repl = {"WSH": "WAS"}
         self.new_file["team1"] = self.new_file["team1"].replace(repl)  # type: ignore
@@ -456,10 +460,10 @@ class EloConstructor:
         self.games["away_team"] = self.games["away_team"].apply(_map_team)
 
         # align playoff nomenclature to fastr
-        self.new_file["game_type"] = numpy.where(  # type: ignore
+        self.new_file["game_type"] = numpy.where(
             pd.isnull(self.new_file["playoff"]),
             "REG",
-            "POST",  # type: ignore
+            "POST",
         )
         self.games["game_type"] = numpy.where(
             numpy.isin(self.games["game_type"], ["WC", "DIV", "CON", "SB"]),
@@ -570,7 +574,7 @@ class EloConstructor:
 
         # final fallback: synthesize id if still missing
         miss2_mask = pd.isnull(self.new_file["game_id"])
-        if miss2_mask.any():
+        if bool(miss2_mask.any()):
             # best-effort week guess: take the min REG week in that season if week is NaN
             def guess_week(row):
                 if not pd.isnull(row.get("week", numpy.nan)):
@@ -600,7 +604,7 @@ class EloConstructor:
                         f"{row['team1']}_{row['team2']}"
                     )
                 except ValueError:
-                    return numpy.nan
+                    return pd.NA
 
             self.new_file.loc[miss2_mask, "game_id"] = self.new_file.loc[miss2_mask].apply(
                 build_game_id, axis=1
