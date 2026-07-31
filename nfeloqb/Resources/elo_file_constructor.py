@@ -1,3 +1,7 @@
+"""Construct the downstream qb_elos.csv export from model outputs and schedule data."""
+
+from typing import Any, cast
+
 import numpy
 import pandas as pd
 
@@ -15,6 +19,8 @@ TEAM_ALIAS = {
     "LA": "LAR",  # historical Rams
 }
 
+RNG = numpy.random.default_rng()
+
 
 def _map_team(code: str) -> str:
     try:
@@ -24,9 +30,19 @@ def _map_team(code: str) -> str:
 
 
 class EloConstructor:
+    """Build a FiveThirtyEight-style Elo export from model and schedule inputs."""
+
     # this class takes in the updated model data, next weeks games, and
     # the original elo file to create a new elo file in the same format
-    def __init__(self, games, qb_model, at_wrapper, elo, export_loc):
+    def __init__(
+        self,
+        games: pd.DataFrame,
+        qb_model: Any,
+        at_wrapper: Any,
+        elo: Any,
+        export_loc: str,
+    ):
+        """Initialize the constructor with the modeled games, Elo state, and export path."""
         self.games = games.copy()
         # an updated QBModel Class object
         self.qb_model = qb_model
@@ -41,26 +57,40 @@ class EloConstructor:
         self.original_elo_file = pd.read_csv(self.qb_model.original_file_loc, index_col=0)
         self.original_elo_cols = self.original_elo_file.columns.to_list()
         # games that occured after original file
-        self.new_games = None
+        self.new_games: pd.DataFrame | None = None
         # next weeks games
-        self.next_games = None
+        self.next_games: pd.DataFrame | None = None
         # merged new games and next games
-        self.new_file_games = None
+        self.new_file_games: pd.DataFrame | None = None
         # formatted rows to be appended to the existing elo file
-        self.new_file_data = []
-        self.new_file = None
+        self.new_file_data: list[dict[str, Any]] = []
+        self.new_file: pd.DataFrame | None = None
+
+    def _require_new_file(self) -> pd.DataFrame:
+        """Return the constructed Elo dataframe, raising when it is unavailable."""
+        if self.new_file is None:
+            msg = "new_file must be created before this operation"
+            raise ValueError(msg)
+        return self.new_file
 
     def determine_new_games(self):
+        """Identify played games that are newer than the historical Elo baseline."""
         # could do dynamically, but just assume anything after 2023-02-12 is new
         # this df represents all played games since original elo file
         # was last updated
-        self.new_games = self.games[
-            (self.games["gameday"] > "2023-02-12") & (~pd.isnull(self.games["result"]))
-        ].copy()
-        if len(self.new_games) == 0:
+        new_games = cast(
+            pd.DataFrame,
+            self.games[
+                (self.games["gameday"] > "2023-02-12") & (~pd.isnull(self.games["result"]))
+            ].copy(),
+        )
+        if len(new_games) == 0:
             self.new_games = None
+            return
+        self.new_games = new_games
 
     def add_qbs_to_new_games(self):
+        """Attach modeled quarterback values to the newly played games."""
         # combine model_df, which is flat, with new games
         # elo file is not flat
         # if new games is none, update
@@ -69,64 +99,67 @@ class EloConstructor:
         # if there have been no new games, return without updating
         if self.new_games is None:
             return
+        home_qbs = self.qb_values[
+            [
+                "game_id",
+                "team",
+                "player_id",
+                "player_display_name",
+                "qb_value_pre",
+                "qb_adj",
+                "player_VALUE_adj",
+                "qb_value_post",
+            ]
+        ].copy()
+        home_qbs.columns = [
+            "game_id",
+            "home_team",
+            "qb1_id",
+            "qb1",
+            "qb1_value_pre",
+            "qb1_adj",
+            "qb1_game_value",
+            "qb1_value_post",
+        ]
         # add home qb
         self.new_games = pd.merge(
             self.new_games,
-            self.qb_values[
-                [
-                    "game_id",
-                    "team",
-                    "player_id",
-                    "player_display_name",
-                    "qb_value_pre",
-                    "qb_adj",
-                    "player_VALUE_adj",
-                    "qb_value_post",
-                ]
-            ].rename(
-                columns={
-                    "team": "home_team",
-                    "player_id": "qb1_id",
-                    "player_display_name": "qb1",
-                    "qb_value_pre": "qb1_value_pre",
-                    "qb_adj": "qb1_adj",
-                    "player_VALUE_adj": "qb1_game_value",
-                    "qb_value_post": "qb1_value_post",
-                }
-            ),
+            home_qbs,
             on=["game_id", "home_team"],
             how="left",
         )
+        away_qbs = self.qb_values[
+            [
+                "game_id",
+                "team",
+                "player_id",
+                "player_display_name",
+                "qb_value_pre",
+                "qb_adj",
+                "player_VALUE_adj",
+                "qb_value_post",
+            ]
+        ].copy()
+        away_qbs.columns = [
+            "game_id",
+            "away_team",
+            "qb2_id",
+            "qb2",
+            "qb2_value_pre",
+            "qb2_adj",
+            "qb2_game_value",
+            "qb2_value_post",
+        ]
         # add away qb
         self.new_games = pd.merge(
             self.new_games,
-            self.qb_values[
-                [
-                    "game_id",
-                    "team",
-                    "player_id",
-                    "player_display_name",
-                    "qb_value_pre",
-                    "qb_adj",
-                    "player_VALUE_adj",
-                    "qb_value_post",
-                ]
-            ].rename(
-                columns={
-                    "team": "away_team",
-                    "player_id": "qb2_id",
-                    "player_display_name": "qb2",
-                    "qb_value_pre": "qb2_value_pre",
-                    "qb_adj": "qb2_adj",
-                    "player_VALUE_adj": "qb2_game_value",
-                    "qb_value_post": "qb2_value_post",
-                }
-            ),
+            away_qbs,
             on=["game_id", "away_team"],
             how="left",
         )
 
     def get_next_games(self):
+        """Select the next scheduled week of unplayed games."""
         # determine the next week of games by earliest future gameday
         games = self.games.copy()
         # ensure datetime
@@ -137,17 +170,21 @@ class EloConstructor:
 
         if len(unplayed) == 0:
             # fallback: choose within the max season of any unplayed
-            unplayed_any = self.games[pd.isnull(self.games["result"])].copy()
+            unplayed_any = cast(pd.DataFrame, self.games[pd.isnull(self.games["result"])].copy())
             if len(unplayed_any) == 0:
                 self.next_games = None
                 return
-            season = unplayed_any["season"].max()
-            week = unplayed_any.loc[unplayed_any["season"] == season, "week"].min()
+            season = int(cast(Any, unplayed_any["season"]).max())
+            season_games = cast(
+                pd.DataFrame,
+                unplayed_any[unplayed_any["season"] == season].copy(),
+            )
+            week = int(cast(Any, season_games["week"]).min())
         else:
             # pick the earliest unplayed date, and use that row's season+week
-            first_idx = unplayed["gameday"].idxmin()
-            season = int(unplayed.loc[first_idx, "season"])
-            week = int(unplayed.loc[first_idx, "week"])
+            first_idx = cast(Any, unplayed["gameday"]).idxmin()
+            season = int(cast(Any, unplayed.loc[first_idx, "season"]))
+            week = int(cast(Any, unplayed.loc[first_idx, "week"]))
 
         # filter to that season+week
         next_games = self.games[
@@ -155,18 +192,19 @@ class EloConstructor:
         ].copy()
 
         # normalize team codes to modern abbreviations so they match starters and elo maps
-        next_games["home_team"] = next_games["home_team"].apply(_map_team)
-        next_games["away_team"] = next_games["away_team"].apply(_map_team)
+        next_games["home_team"] = cast(Any, next_games["home_team"]).apply(_map_team)
+        next_games["away_team"] = cast(Any, next_games["away_team"]).apply(_map_team)
 
-        self.next_games = next_games
+        self.next_games = cast(pd.DataFrame, next_games)
 
     def extract_starter_values(self, qb_id, season, team, draft_number, gameday):
+        """Return the modeled starter value for a projected quarterback."""
         # helper function that pulls starters current value from the model
         # and does necessary regression
         # first create a random id if qb_id is null, which can happen if QB is not in roster
         # file yet
         if pd.isnull(qb_id):
-            qb_id = "00-" + str(numpy.random.randint(100000, 200000))
+            qb_id = f"00-{RNG.integers(100000, 200000)}"
         # create a dummy 'row' so we can use get_qb_value function from model
         row = {
             "player_id": qb_id,
@@ -181,6 +219,7 @@ class EloConstructor:
         return qb_value
 
     def add_starters_and_team_values(self):
+        """Attach projected starters and team-adjusted quarterback values to next games."""
         # add starters and team values to the new games
         self.at_wrapper.pull_current_starters()
 
@@ -204,7 +243,7 @@ class EloConstructor:
                 starter = starter_dict.get(team_code)
                 if starter is None:
                     # fallback: create a dummy QB for team_code
-                    qb_id = f"00-{numpy.random.randint(100000, 200000)}"
+                    qb_id = f"00-{RNG.integers(100000, 200000)}"
                     qb_name = "Unknown QB"
                     draft_number = numpy.nan
                 else:
@@ -251,11 +290,17 @@ class EloConstructor:
         if self.next_games is None or len(self.next_games) == 0:
             return
 
-        self.next_games = self.next_games.apply(
-            apply_starters_and_team_values, starter_dict=starter_dict, axis=1
+        self.next_games = cast(
+            pd.DataFrame,
+            self.next_games.apply(
+                apply_starters_and_team_values,
+                starter_dict=starter_dict,
+                axis=1,
+            ),
         )
 
     def add_elo_to_new_and_next(self):
+        """Attach base Elo ratings and win probabilities to new and next games."""
         # add the elo to the new games and next games
         # since elo is built from the same game df as new and next games
         # everything should join correctly and last week of elo should be the last
@@ -341,9 +386,10 @@ class EloConstructor:
                 return row
 
             # apply
-            self.next_games = self.next_games.apply(apply_elo_to_next, axis=1)
+            self.next_games = cast(pd.DataFrame, self.next_games.apply(apply_elo_to_next, axis=1))
 
     def merge_new_and_next(self):
+        """Combine played and upcoming games into the staged Elo export set."""
         # merge new games and next games with logic to handle blanks
         if self.new_games is None:
             if self.next_games is None:
@@ -355,24 +401,29 @@ class EloConstructor:
             if self.next_games is None:
                 self.new_file_games = self.new_games
             else:
+                new_games = self.new_games
+                next_games = self.next_games
                 # merge
                 # next games has some columns that are all NA because they have occured yet
                 # as a result, there is no guarantee their dtype will match the same col
                 # in new games. To avoid any warnings, and ensure a proper concat, set explicitly
-                self.next_games = self.next_games.astype(
+                next_games = next_games.astype(
                     # by only passing new game dtypes, it also filters next games to the correct
                     # columns
                     # note: we dont ensure that the dtypes work for the all nan fields (i.e. ints
                     # won't cast), and we dont check to make sure all of new_games columns are in
                     # next_games, because this should never occur, and we would therefore want it
                     # throw an error
-                    self.new_games.dtypes
+                    new_games.dtypes
                 )
-                self.new_file_games = pd.concat(
-                    [self.new_games, self.next_games[self.new_games.columns]]
+                self.next_games = next_games
+                self.new_file_games = cast(
+                    pd.DataFrame,
+                    pd.concat([new_games, next_games[new_games.columns]]),
                 )
 
     def format_games_row(self, row):
+        """Format a modeled game row into the historical Elo export schema."""
         # takes a row from model_df and formats it for the elo file
         new_row = {}
         for col in self.original_elo_cols:
@@ -424,6 +475,7 @@ class EloConstructor:
         self.new_file_data.append(new_row)
 
     def create_new_file(self):
+        """Build the staged Elo dataframe from historical and newly formatted rows."""
         # merges original elo file with new games and next games and then saves
         # to the root of the package
         if self.new_file_games is None:
@@ -441,25 +493,23 @@ class EloConstructor:
             self.new_file = self.new_file.reset_index(drop=True)
 
     def add_game_id_and_week(self):
-        """Adds fields like week, and game id for easier joins down the road"""
-        if self.new_file is None:
-            msg = "new_file must be created before adding game ids and weeks"
-            raise ValueError(msg)
+        """Add game IDs and weeks for easier downstream joins."""
+        new_file = self._require_new_file()
 
         # replace team names (keep legacy→modern mapping consistent everywhere)
         repl = {"WSH": "WAS"}
-        self.new_file["team1"] = self.new_file["team1"].replace(repl)  # type: ignore
-        self.new_file["team2"] = self.new_file["team2"].replace(repl)  # type: ignore
+        new_file["team1"] = new_file["team1"].replace(repl)
+        new_file["team2"] = new_file["team2"].replace(repl)
 
         # ALSO normalize via TEAM_ALIAS on both sides
-        self.new_file["team1"] = self.new_file["team1"].apply(_map_team)  # type: ignore
-        self.new_file["team2"] = self.new_file["team2"].apply(_map_team)  # type: ignore
+        new_file["team1"] = new_file["team1"].apply(_map_team)
+        new_file["team2"] = new_file["team2"].apply(_map_team)
         self.games["home_team"] = self.games["home_team"].apply(_map_team)
         self.games["away_team"] = self.games["away_team"].apply(_map_team)
 
         # align playoff nomenclature to fastr
-        self.new_file["game_type"] = numpy.where(
-            pd.isnull(self.new_file["playoff"]),
+        new_file["game_type"] = numpy.where(
+            pd.isnull(new_file["playoff"]),
             "REG",
             "POST",
         )
@@ -506,12 +556,12 @@ class EloConstructor:
         ]
         for swap in swaps:
             # find record and get index
-            row_indexs = self.new_file.index[  # type: ignore
-                (self.new_file["date"] == swap[0])  # type: ignore
-                & (self.new_file["team1"] == swap[1])  # type: ignore
-                & (self.new_file["team2"] == swap[2])  # type: ignore
+            row_indices = new_file.index[
+                (new_file["date"] == swap[0])
+                & (new_file["team1"] == swap[1])
+                & (new_file["team2"] == swap[2])
             ].tolist()
-            if len(row_indexs) == 1:
+            if len(row_indices) == 1:
                 # need to swap all '1' values for '2' values and visa versa
                 for field in [
                     "team{0}",
@@ -529,35 +579,40 @@ class EloConstructor:
                     "score{0}",
                 ]:
                     # store values before replacement
-                    v1 = self.new_file.at[row_indexs[0], field.format(1)]  # type: ignore
-                    v2 = self.new_file.at[row_indexs[0], field.format(2)]  # type: ignore
+                    v1 = new_file.at[row_indices[0], field.format(1)]
+                    v2 = new_file.at[row_indices[0], field.format(2)]
                     # then repace
-                    self.new_file.at[row_indexs[0], field.format(1)] = v2  # type: ignore
-                    self.new_file.at[row_indexs[0], field.format(2)] = v1  # type: ignore
+                    new_file.at[row_indices[0], field.format(1)] = v2
+                    new_file.at[row_indices[0], field.format(2)] = v1
             else:
                 print(f"     Warning -- Attempt to apply manual home/away fix to {swap} failed")
-                print(f"                Index found: {len(row_indexs)}")
+                print(f"                Index found: {len(row_indices)}")
 
         # apply primary merge (team1=home, team2=away)
-        base_games = (
-            self.games[["home_team", "away_team", "season", "game_type", "game_id", "week"]]
-            .groupby(["home_team", "away_team", "season", "game_type"])
-            .head(1)
-            .rename(columns={"home_team": "team1", "away_team": "team2"})
-            .copy()
+        base_games = self.games[
+            ["home_team", "away_team", "season", "game_type", "game_id", "week"]
+        ].copy()
+        base_games = cast(
+            pd.DataFrame,
+            base_games.groupby(["home_team", "away_team", "season", "game_type"]).head(1).copy(),
         )
+        base_games.columns = ["team1", "team2", "season", "game_type", "game_id", "week"]
 
-        self.new_file = pd.merge(
-            self.new_file,  # type: ignore
+        new_file = pd.merge(
+            new_file,
             base_games,
             on=["team1", "team2", "season", "game_type"],
             how="left",
         )
 
         # fill misses by swapping join keys (handles occasional team order issues)
-        miss = self.new_file[pd.isnull(self.new_file["game_id"])].copy()
+        miss = new_file[pd.isnull(new_file["game_id"])].copy()
         if len(miss) > 0:
-            swap_games = base_games.rename(columns={"team1": "team2", "team2": "team1"})
+            swap_games = cast(
+                pd.DataFrame,
+                base_games[["team2", "team1", "season", "game_type", "game_id", "week"]].copy(),
+            )
+            swap_games.columns = ["team1", "team2", "season", "game_type", "game_id", "week"]
             fix = pd.merge(
                 miss.drop(columns=["game_id", "week"], errors="ignore"),
                 swap_games,
@@ -566,18 +621,18 @@ class EloConstructor:
             )
             # write back any found ids
             if "game_id" in fix.columns:
-                self.new_file.loc[miss.index, "game_id"] = fix["game_id"].values
+                new_file.loc[miss.index, "game_id"] = fix["game_id"].values
             if "week" in fix.columns:
-                self.new_file.loc[miss.index, "week"] = fix["week"].values
+                new_file.loc[miss.index, "week"] = fix["week"].values
 
         # final fallback: synthesize id if still missing
-        miss2_mask = pd.isnull(self.new_file["game_id"])
+        miss2_mask = pd.isnull(new_file["game_id"])
         if bool(miss2_mask.any()):
             # best-effort week guess: take the min REG week in that season if week is NaN
             def guess_week(row):
                 if not pd.isnull(row.get("week", numpy.nan)):
                     try:
-                        return int(row["week"])
+                        return int(cast(Any, row["week"]))
                     except ValueError:
                         pass
                 g = self.games[
@@ -586,32 +641,32 @@ class EloConstructor:
                 ]
                 if len(g) > 0:
                     try:
-                        return int(g["week"].min())
+                        return int(cast(Any, g["week"].min()))
                     except ValueError:
                         return numpy.nan
                 return numpy.nan
 
             # compute week (if needed) and synthesize id
-            wk = self.new_file.loc[miss2_mask].apply(guess_week, axis=1)
-            self.new_file.loc[miss2_mask, "week"] = self.new_file.loc[miss2_mask, "week"].fillna(wk)
+            wk = new_file.loc[miss2_mask].apply(guess_week, axis=1)
+            new_file.loc[miss2_mask, "week"] = new_file.loc[miss2_mask, "week"].fillna(wk)
 
             def build_game_id(row):
                 try:
+                    season_value = cast(Any, row["season"])
+                    week_value = cast(Any, row["week"])
                     return (
-                        f"{int(row['season']):04d}_{int(row['week']):02d}_"
+                        f"{int(season_value):04d}_{int(week_value):02d}_"
                         f"{row['team1']}_{row['team2']}"
                     )
                 except ValueError:
                     return pd.NA
 
-            self.new_file.loc[miss2_mask, "game_id"] = self.new_file.loc[miss2_mask].apply(
+            new_file.loc[miss2_mask, "game_id"] = new_file.loc[miss2_mask].apply(
                 build_game_id, axis=1
             )
 
         # warn about any remaining misses (should be none)
-        check = self.new_file[
-            (self.new_file["season"] >= 1999) & (pd.isnull(self.new_file["game_id"]))
-        ].copy()
+        check = new_file[(new_file["season"] >= 1999) & (pd.isnull(new_file["game_id"]))].copy()
         if len(check) > 0:
             print("     Warning -- some games are missing game_id:")
             for _, row in check.iterrows():
@@ -619,8 +674,10 @@ class EloConstructor:
                     f"          {row.get('date', '')} {row.get('season')} "
                     f"{row.get('game_type')} {row.get('team1')} vs {row.get('team2')}"
                 )
+        self.new_file = new_file
 
     def construct_elo_file(self):
+        """Run the full Elo export construction workflow and write the output file."""
         # wrapper on the above functions that creates the elo file
         print("Constructing elo file...")
         print("     Determining new games...")
@@ -652,5 +709,5 @@ class EloConstructor:
             self.create_new_file()
             self.add_game_id_and_week()
             print("     Saving new elo file...")
-            self.new_file.to_csv(f"{self.export_loc}/qb_elos.csv", index=False)  # type: ignore
+            self._require_new_file().to_csv(f"{self.export_loc}/qb_elos.csv", index=False)
             print("     Done")
