@@ -1,18 +1,26 @@
 # IMPORTS
 import pathlib
+from typing import Any
 
 import nfelodcm as dcm
 import numpy
 import pandas as pd
 
 
+def _rename_columns(df: Any, rename_map: dict[str, str]) -> pd.DataFrame:
+    """Return a dataframe copy with selected columns renamed via direct column assignment."""
+    renamed = pd.DataFrame(df).copy()
+    renamed.columns = [rename_map.get(str(column), str(column)) for column in renamed.columns]
+    return renamed
+
+
 class DataLoader:
     # this class retrieves, loads, and merges data
     def __init__(self):
         # dfs we want to output
-        self.model_df = None
-        self.games_df = None
-        self.games = None
+        self.model_df: pd.DataFrame | None = None
+        self.games_df: pd.DataFrame | None = None
+        self.games: pd.DataFrame | None = None
         # load external data
         self.db = dcm.load(["games", "players", "player_stats"])
         # variables
@@ -38,11 +46,7 @@ class DataLoader:
         df = self.db["player_stats"]
         # only qbs are relevant
         df = df[df["position"] == "QB"].copy()
-        df = df.rename(
-            columns={
-                "recent_team": "team",
-            }
-        )
+        df = _rename_columns(df, {"recent_team": "team"})
         return df
 
     def normalize_games(self, games):
@@ -64,13 +68,14 @@ class DataLoader:
             # groupby id to ensure no dupes
             missing_draft = missing_draft.groupby(["player_id"]).head(1)
             # rename the cols, which will fill if main in NA
-            missing_draft = missing_draft.rename(
-                columns={
+            missing_draft = _rename_columns(
+                missing_draft,
+                {
                     "rookie_year": "rookie_year_fill",
                     "draft_number": "draft_number_fill",
                     "entry_year": "entry_year_fill",
                     "birth_date": "birth_date_fill",
-                }
+                },
             )
             # add to data
             df = pd.merge(
@@ -111,20 +116,19 @@ class DataLoader:
             # add to df
             df = pd.merge(
                 df,
-                meta[
-                    [
-                        "gsis_id",
-                        "first_name",
-                        "last_name",
-                        "birth_date",
-                        "rookie_year",
-                        "entry_year",
-                        "draft_number",
-                    ]
-                ].rename(
-                    columns={
-                        "gsis_id": "player_id",
-                    }
+                _rename_columns(
+                    meta[
+                        [
+                            "gsis_id",
+                            "first_name",
+                            "last_name",
+                            "birth_date",
+                            "rookie_year",
+                            "entry_year",
+                            "draft_number",
+                        ]
+                    ],
+                    {"gsis_id": "player_id"},
                 ),
                 on=["player_id"],
                 how="left",
@@ -146,55 +150,57 @@ class DataLoader:
             # flatten
             game_flat = pd.concat(
                 [
-                    game[
-                        [
-                            "game_id",
-                            "gameday",
-                            "season",
-                            "week",
-                            "home_team",
-                            "away_team",
-                            "home_qb_id",
-                            "home_qb_name",
-                            "away_qb_id",
-                            "away_qb_name",
-                            "wind",
-                            "temp",
-                        ]
-                    ].rename(
-                        columns={
+                    _rename_columns(
+                        game[
+                            [
+                                "game_id",
+                                "gameday",
+                                "season",
+                                "week",
+                                "home_team",
+                                "away_team",
+                                "home_qb_id",
+                                "home_qb_name",
+                                "away_qb_id",
+                                "away_qb_name",
+                                "wind",
+                                "temp",
+                            ]
+                        ],
+                        {
                             "home_team": "team",
                             "home_qb_id": "starter_id",
                             "home_qb_name": "starter_name",
                             "away_team": "opponent",
                             "away_qb_id": "opponent_starter_id",
                             "away_qb_name": "opponent_starter_name",
-                        }
+                        },
                     ),
-                    game[
-                        [
-                            "game_id",
-                            "gameday",
-                            "season",
-                            "week",
-                            "home_team",
-                            "away_team",
-                            "home_qb_id",
-                            "home_qb_name",
-                            "away_qb_id",
-                            "away_qb_name",
-                            "wind",
-                            "temp",
-                        ]
-                    ].rename(
-                        columns={
+                    _rename_columns(
+                        game[
+                            [
+                                "game_id",
+                                "gameday",
+                                "season",
+                                "week",
+                                "home_team",
+                                "away_team",
+                                "home_qb_id",
+                                "home_qb_name",
+                                "away_qb_id",
+                                "away_qb_name",
+                                "wind",
+                                "temp",
+                            ]
+                        ],
+                        {
                             "away_team": "team",
                             "away_qb_id": "starter_id",
                             "away_qb_name": "starter_name",
                             "home_team": "opponent",
                             "home_qb_id": "opponent_starter_id",
                             "home_qb_name": "opponent_starter_name",
-                        }
+                        },
                     ),
                 ]
             )
@@ -224,7 +230,7 @@ class DataLoader:
                 rushing_tds=("rushing_tds", "sum"),
             )
             .reset_index()
-            .rename(columns={team_field: "team"})
+            .pipe(_rename_columns, {team_field: "team"})
         )
 
     def iso_top_passer(self, df):
