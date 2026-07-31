@@ -5,6 +5,7 @@ __pycache__
 .cursor/*
 venv/
 .venv/
+.coverage
 
 
 /nfeloqb/Optimizer/In-flight Results/*.csv
