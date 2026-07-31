@@ -1,9 +1,8 @@
+"""Define the mutable quarterback state tracked by the model across games and seasons."""
+
 # Built-in
 import math
 from dataclasses import dataclass, field
-
-# Packages
-import pandas as pd
 
 # Models
 from .ModelConfig import ModelConfig
@@ -15,7 +14,7 @@ from .Utilities import prog_disc, s_curve
 
 @dataclass
 class QB:
-    """An object that contains state about a quarterback"""
+    """Store the quarterback state used by the model across games and seasons."""
 
     # initing meta
     player_id: str
@@ -32,9 +31,9 @@ class QB:
     rolling_value: float = field(init=False)
     starts: int = field(init=False)
     season_starts: int = field(init=False)
-    season_team_adjs_alotted: int = field(init=False)
-    season_team_adjs_received: int = field(init=False)
-    season_player_adjs_received: int = field(init=False)
+    season_team_adjs_alotted: float = field(init=False)
+    season_team_adjs_received: float = field(init=False)
+    season_player_adjs_received: float = field(init=False)
     last_game_date: str | None = field(init=False)
     last_game_season: int | None = field(init=False)
     last_game_team: str | None = field(init=False)
@@ -42,10 +41,7 @@ class QB:
     params: dict = field(init=False)
 
     def __post_init__(self):
-        """Check that the QB was created successfully. QB objects must be created via
-        the create class method so that league context can be used to set initial values.
-        If this was not done, an error is raised
-        """
+        """Initialize quarterback state from the active model configuration."""
         # unpack the config for convenience
         self.params = self.config.values
         # calc the iniitial current value using the draft model
@@ -57,7 +53,7 @@ class QB:
                     self.params["rookie_draft_slope"]
                     * math.log(
                         self.draft_number
-                        if not pd.isnull(self.draft_number)
+                        if self.draft_number is not None
                         else self.params["rookie_undrafted_draft_number"]
                     )
                 )
@@ -85,7 +81,7 @@ class QB:
         self.last_game_team = None
 
     def as_record(self) -> dict:
-        """Returns the QB's state as a dictionary"""
+        """Return the quarterback state as a dictionary."""
         return {
             "player_id": self.player_id,
             "player_name": self.player_name,
@@ -106,18 +102,7 @@ class QB:
         self,
         team_state: Team,
     ) -> float:
-        """Retrieve the QBs current values, while accounting for adjustments that should be made due
-        to how other QBs on the team may be performing
-
-        Parameters
-        ----------
-        * team_state: The state of the team that the QB is on
-
-        Returns
-        -------
-        * The QBs current value, accounting for adjustments made to other QBs on the team
-
-        """
+        """Return the quarterback value after applying any team-level adjustment."""
         # determine if this QB is a backup and should be adjusted
         if self.season_starts == 0 and team_state.season_adjs != 0:
             # get the cumulative adjustmensts made to QBs on the team
@@ -135,27 +120,13 @@ class QB:
                 other_qb_adj = net_adjs * self.params["player_team_adj_allotment_disc"]
                 self.current_value += other_qb_adj
                 # update the allotted amount to this QB
-                self.season_team_adjs_alotted += net_adjs  # type: ignore
+                self.season_team_adjs_alotted += net_adjs
                 self.season_team_adjs_received += other_qb_adj
         # return the current value
         return self.current_value
 
     def update_value(self, value: float, proj: float, gameday: str, season: int, team: str) -> None:
-        """Updates the QB's state after a game
-
-        Parameters
-        ----------
-        * value: The value of the QB's performance
-        * proj: The projected value of the QB's performance
-        * gameday: The date of the game
-        * season: The season of the game
-        * team: The team the QB is on
-
-        Returns
-        -------
-        * None
-
-        """
+        """Update the quarterback state after a completed game."""
         # update the last game date and season
         self.last_game_date = gameday
         self.last_game_season = season
@@ -196,25 +167,13 @@ class QB:
             + (1 - self.params["player_sf"]) * self.current_variance
         )
         # update the qb's adjs received
-        self.season_player_adjs_received += self.current_value - old_value  # type: ignore
+        self.season_player_adjs_received += self.current_value - old_value
 
     def regress_value(
         self,
         prev_season_league_avg: float,
     ) -> None:
-        """Regresses the QB's value to a combination of their career average and
-        the leauge average. Season based states are also reset.
-
-        Parameters
-        ----------
-        * prev_season_league_avg: The league average from the previous season
-        * prev_season_team_avg: The team average from the previous season
-
-        Returns
-        -------
-        * None
-
-        """
+        """Regress the quarterback value toward career and league baselines."""
         # remove team based adjustments received during the season
         self.current_value = self.current_value - self.season_team_adjs_received
         # calculate the amount to regress to the league average
