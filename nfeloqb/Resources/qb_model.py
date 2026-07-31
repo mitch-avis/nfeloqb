@@ -1,7 +1,9 @@
+"""Run the stateful quarterback model over a chronologically ordered game feed."""
+
 # Built-ins
 import pathlib
 import time
-from typing import Any
+from typing import Any, cast
 
 import numpy
 
@@ -11,18 +13,21 @@ import pandas as pd
 # local
 from ..DataModels import QB, GameContext, ModelConfig, Team
 
+GameRow = dict[str, Any]
+
 
 class QBModel:
-    # This class is used to store, retrieve, and update data as we
-    # iterate over the game file
+    """Store and update quarterback model state while iterating through games."""
+
     def __init__(self, games: pd.DataFrame, model_config: ModelConfig):
+        """Initialize the model with game data and the active configuration."""
         self.games: pd.DataFrame = games
         self.config: ModelConfig = model_config
         # league states
         # storage for season averages
-        self.season_avgs: dict = {}
+        self.season_avgs: dict[int, float] = {}
         # storage for season team averages
-        self.team_avgs: dict = {}
+        self.team_avgs: dict[str, float] = {}
         # QB and Team state objects
         # storage for most recent QB Data
         self.qbs: dict[str, QB] = {}
@@ -32,9 +37,9 @@ class QBModel:
         self.qb_records: list[dict[str, Any]] = []
         # ouput data
         # storage for all game records
-        self.data: list[dict] = []
+        self.data: list[GameRow] = []
         # storage for team defense data
-        self.data_team: list[dict] = []
+        self.data_team: list[dict[str, Any]] = []
         # tracking
         # track the current week to know when it has changed
         self.current_week: int = 1
@@ -52,32 +57,40 @@ class QBModel:
     # INITIALIZATION FUNCTIONS
     ###############
     def chrono_sort(self):
+        """Sort games chronologically for model iteration."""
         # sort games by date
         self.games = self.games.sort_values(
             by=["season", "week", "game_id"], ascending=[True, True, True]
         ).reset_index(drop=True)
 
     def add_averages(self):
+        """Cache season and team averages used for offseason regression."""
         # adds the avg QB values for teams and leagues which are used in reversion
         # calc team averages
-        team_avgs = self.games.groupby(["season", "team"])["team_VALUE"].mean().reset_index()
+        team_avgs = self.games.groupby(["season", "team"], as_index=False).agg(
+            team_VALUE=("team_VALUE", "mean")
+        )
         # calc league average
-        season_avgs = self.games.groupby(["season"])["team_VALUE"].mean().reset_index()
+        season_avgs = self.games.groupby(["season"], as_index=False).agg(
+            team_VALUE=("team_VALUE", "mean")
+        )
         # write to stoarge
-        for _, row in team_avgs.iterrows():
-            self.team_avgs[f"{row['season']}{row['team']}"] = row["team_VALUE"]
-        for _, row in season_avgs.iterrows():
-            self.season_avgs[row["season"]] = row["team_VALUE"]
+        for season, team, team_value in team_avgs.itertuples(index=False, name=None):
+            self.team_avgs[f"{int(season)}{team}"] = float(team_value)
+        for season, team_value in season_avgs.itertuples(index=False, name=None):
+            self.season_avgs[int(season)] = float(team_value)
 
     ##################
     # RETRIEVAL METHODS FOR AVERAGES
     ##################
-    def get_prev_season_team_avg(self, season, team):
+    def get_prev_season_team_avg(self, season: int, team: str) -> float:
+        """Return the previous-season team average for the provided team."""
         # get the teams previous season average while controlling for errors
         # the first season will not have a pervous season
         return self.team_avgs.get(f"{season - 1}{team}", self.config.values["init_value"])
 
-    def get_prev_season_league_avg(self, season):
+    def get_prev_season_league_avg(self, season: int) -> float:
+        """Return the previous-season league average."""
         # get the leagues previous season average while controlling for errors
         # the first season will not have a pervous season
         return self.season_avgs.get(season - 1, self.config.values["init_value"])
@@ -85,14 +98,15 @@ class QBModel:
     ##################
     # RETRIEVAL METHODS FOR OBJECTS
     ##################
-    def get_team(self, team):
+    def get_team(self, team: str) -> Team:
+        """Return the team object for the provided team abbreviation."""
         # retrieve the team object from storage
         if team not in self.teams:
             self.teams[team] = Team(team, self.config)
         return self.teams[team]
 
-    def get_qb(self, row):
-        """Retrives a QB object from storage, or creates it if it doesn't exist"""
+    def get_qb(self, row: GameRow) -> QB:
+        """Return the quarterback object for a game row, creating it on first use."""
         if row["player_id"] not in self.qbs:
             # init the qb if it doesn't exist
             self.qbs[row["player_id"]] = QB(
@@ -108,23 +122,8 @@ class QBModel:
         # retieve the qb from storage
         return self.qbs[row["player_id"]]
 
-    def get_objects(self, row) -> tuple[QB, Team, Team]:
-        """Helper to retrive QB and Team objects while handling object creation, regression, and
-        inter-object adjustments (ie team adjustment on the QB). This is used internally by the
-        model to init populate a new game with necessary information about the QB and teams, but it
-        is also used externally by the Elo file constructor. Since it touches state, external use
-        should not be used iteratively.
-
-        Parameters
-        ----------
-        * row: dict - a game df row, or a dict simulating a game df row. Minimum required fields:
-            player_id, team, opponent, season
-
-        Returns
-        -------
-        * tuple - A tuple containing the QB and Team objects
-
-        """
+    def get_objects(self, row: GameRow) -> tuple[QB, Team, Team]:
+        """Return the quarterback and team objects needed for a game row."""
         # get objects and init as necessary using the get_X functions
         qb = self.get_qb(row)
         team = self.get_team(row["team"])
@@ -159,7 +158,7 @@ class QBModel:
     # MODEL FUNCTIONS
     ###########
     def run_model(self):
-        """Iters through the games df, updates states, and saves the output"""
+        """Iterate through games, update state, and store per-game outputs."""
         # set a start epoch time
         start_time = time.time()
         # clear out any existing values
@@ -168,7 +167,8 @@ class QBModel:
         self.data = []  # storage for all game records
         self.current_week = 1  # track the current week to know when it has changed
         # iterate through games df
-        for _, row in self.games.iterrows():
+        for _, raw_row in self.games.iterrows():
+            row = cast(GameRow, raw_row.to_dict())
             # retrive the objects
             qb, team, opponent = self.get_objects(row)
             # create a game context
@@ -242,7 +242,7 @@ class QBModel:
             row["team_value_post"] = team.off_value
             row["opponent_def_value_post"] = opponent.def_value
             # write row to data
-            self.data.append(row)  # type: ignore
+            self.data.append(row)
             qb_record = qb.as_record()
             qb_record["value_pre"] = row["qb_value_pre"]
             qb_record["opponent_def_value_pre"] = row["opponent_def_value_pre"]
@@ -260,7 +260,8 @@ class QBModel:
         self.model_runtime = end_time - start_time
 
     # scoring
-    def add_elo(self, df):
+    def add_elo(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Add FiveThirtyEight quarterback Elo values for comparison scoring."""
         # add elo values from 538 to df for comparison of accuracy
         # read in elo data
         elo = pd.read_csv(
@@ -268,30 +269,25 @@ class QBModel:
             index_col=0,
         )
         # flatten elo df
-        elo = pd.concat(
-            [
-                elo[["date", "team1", "team2", "qb1", "qb1_value_pre", "qb1_adj"]].rename(
-                    columns={
-                        "date": "gameday",
-                        "team1": "team",
-                        "team2": "opponent",
-                        "qb1": "player_display_name",
-                        "qb1_value_pre": "f38_projected_value",
-                        "qb1_adj": "f38_team_adj",
-                    }
-                ),
-                elo[["date", "team2", "team1", "qb2", "qb2_value_pre", "qb2_adj"]].rename(
-                    columns={
-                        "date": "gameday",
-                        "team2": "team",
-                        "team1": "opponent",
-                        "qb2": "player_display_name",
-                        "qb2_value_pre": "f38_projected_value",
-                        "qb2_adj": "f38_team_adj",
-                    }
-                ),
-            ]
-        )
+        home_elo = elo[["date", "team1", "team2", "qb1", "qb1_value_pre", "qb1_adj"]].copy()
+        home_elo.columns = [
+            "gameday",
+            "team",
+            "opponent",
+            "player_display_name",
+            "f38_projected_value",
+            "f38_team_adj",
+        ]
+        away_elo = elo[["date", "team2", "team1", "qb2", "qb2_value_pre", "qb2_adj"]].copy()
+        away_elo.columns = [
+            "gameday",
+            "team",
+            "opponent",
+            "player_display_name",
+            "f38_projected_value",
+            "f38_team_adj",
+        ]
+        elo = pd.concat([home_elo, away_elo])
         # dedupe
         elo = elo.groupby(["gameday", "team", "opponent", "player_display_name"]).head(1)
         # convert elo to value
@@ -307,7 +303,8 @@ class QBModel:
         # return df
         return df
 
-    def score_model(self, first_season=2009, add_elo=True):
+    def score_model(self, first_season: int = 2009, add_elo: bool = True) -> dict[str, float]:
+        """Score model forecasts against observed quarterback performance."""
         # function for scoring model for testing purposes
         # create df from data
         df = pd.DataFrame(self.data)
@@ -339,55 +336,63 @@ class QBModel:
         # only look at data past first season
         # this is to give model time to catch up since we are starting in 1999
         # and veteran QBs are treated like rookies in that season
-        df = df[df["season"] >= first_season].copy()
+        df = cast(pd.DataFrame, df[df["season"] >= first_season].copy())
         # copy config to serve as a record of what was used
         record = self.config.values.copy()
         # add rmse and mae to record
-        record["rmse"] = df["se"].mean() ** 0.5
-        record["mae"] = df["abs_error"].mean()
+        record["rmse"] = cast(float, df["se"].mean() ** 0.5)
+        record["mae"] = cast(float, df["abs_error"].mean())
         # add specials
-        record["mae_first_16"] = numpy.nanmean(  # type: ignore
-            numpy.where(df["start_number"] <= 16, df["abs_error"], numpy.nan)
+        record["mae_first_16"] = cast(
+            float, numpy.nanmean(numpy.where(df["start_number"] <= 16, df["abs_error"], numpy.nan))
         )
-        record["mae_backup"] = numpy.nanmean(  # type: ignore
-            numpy.where(
-                df["qb_value_pre"] - df["team_value_pre"] < -15,
-                df["abs_error"],
-                numpy.nan,
-            )
+        record["mae_backup"] = cast(
+            float,
+            numpy.nanmean(
+                numpy.where(
+                    df["qb_value_pre"] - df["team_value_pre"] < -15,
+                    df["abs_error"],
+                    numpy.nan,
+                )
+            ),
         )
         # add rolling averages to record
         for roll in [8, 16, 24, 32]:
-            record[f"rmse_r{roll}"] = df[f"se_r{roll}"].mean() ** 0.5
-            record[f"mae_r{roll}"] = df[f"abs_error_r{roll}"].mean()
+            record[f"rmse_r{roll}"] = cast(float, df[f"se_r{roll}"].mean() ** 0.5)
+            record[f"mae_r{roll}"] = cast(float, df[f"abs_error_r{roll}"].mean())
         if add_elo:
             # add elo data
             df = self.add_elo(df)
             # add comparison to 538
             f = df[~pd.isnull(df["f38_projected_value"])].copy()
             f["f38_se"] = (f["f38_projected_value"] - f["player_VALUE_adj"]) ** 2
-            record["delta_vs_538"] = (f["f38_se"].mean() ** 0.5) - (f["se"].mean() ** 0.5)
+            record["delta_vs_538"] = cast(
+                float, (f["f38_se"].mean() ** 0.5) - (f["se"].mean() ** 0.5)
+            )
             # add rookie model comp
             r = f[f["start_number"] <= 10].copy()
-            record["delta_vs_538_rookies"] = (r["f38_se"].mean() ** 0.5) - (r["se"].mean() ** 0.5)
+            record["delta_vs_538_rookies"] = cast(
+                float, (r["f38_se"].mean() ** 0.5) - (r["se"].mean() ** 0.5)
+            )
         record["model_runtime"] = self.model_runtime
         # return record
         return record
 
-    def score_adj(self, first_season=2009):
+    def score_adj(self, first_season: int = 2009) -> dict[str, float]:
+        """Score the model's team adjustment against the 538 team adjustment."""
         # Function for scoring the team adjustment
         # While the model should try to predict VALUE as best as it can
         # The team adj should try to get as close to the 538 team adj as this
         # ghe main nfelo model has already been optimized for this value
         # create df from data
         df = pd.DataFrame(self.data)
-        df = df[df["season"] >= first_season].copy()
+        df = cast(pd.DataFrame, df[df["season"] >= first_season].copy())
         # add elo
         df = self.add_elo(df)
         # add comparison to 538
         f = df[~pd.isnull(df["f38_team_adj"])].copy()
         f["adj_se"] = (f["f38_team_adj"] - f["qb_adj"]) ** 2
         # add rmse to record
-        record = self.config.copy()  # type: ignore
-        record["adjustment_rmse"] = f["adj_se"].mean() ** 0.5
+        record = self.config.values.copy()
+        record["adjustment_rmse"] = cast(float, f["adj_se"].mean() ** 0.5)
         return record
