@@ -10,10 +10,13 @@ import numpy
 import pandas as pd
 import requests
 
+nfl: Any | None
 try:
-    import nflreadpy as nfl
+    import nflreadpy as _nfl
 except ImportError:
     nfl = None
+else:
+    nfl = _nfl
 
 
 def _to_pandas(df: Any) -> pd.DataFrame | None:
@@ -34,9 +37,17 @@ def _to_pandas(df: Any) -> pd.DataFrame | None:
             if exc.name == "pyarrow":
                 to_dicts = getattr(df, "to_dicts", None)
                 if callable(to_dicts):
-                    return pd.DataFrame(cast(Any, to_dicts()))
+                    dict_rows: Any = to_dicts()
+                    return pd.DataFrame(dict_rows)
             raise
     return pd.DataFrame(cast(Any, df))
+
+
+def _rename_columns(df: Any, rename_map: dict[str, str]) -> pd.DataFrame:
+    """Return a dataframe copy with selected columns renamed."""
+    renamed = pd.DataFrame(df).copy()
+    renamed.columns = [rename_map.get(str(column), str(column)) for column in renamed.columns]
+    return renamed
 
 
 class AirtableWrapper:
@@ -44,9 +55,9 @@ class AirtableWrapper:
     # starters for the current week
     def __init__(self, model_df, at_config, perform_starter_update=True):
         # df of qbs and their meta data
-        self.model_df = model_df
+        self.model_df: pd.DataFrame | None = model_df
         # config for airtable including token, ids, etc
-        self.at_config = at_config
+        self.at_config: dict[str, Any] = at_config
 
         # NEW: disabled mode for local runs or missing creds
         disable_flag = os.getenv("NFELOQB_DISABLE_AIRTABLE", "").lower() in (
@@ -59,10 +70,10 @@ class AirtableWrapper:
         self.disabled = disable_flag or missing
 
         # Safe defaults for attributes used downstream
-        self.existing_qbs = []
-        self.existing_qb_options = []
-        self.existing_starters = {}
-        self.starters_df = pd.DataFrame(
+        self.existing_qbs: list[str] = []
+        self.existing_qb_options: list[str] = []
+        self.existing_starters: dict[str, Any] = {}
+        self.starters_df: pd.DataFrame = pd.DataFrame(
             columns=[
                 "team",
                 "player_id",
@@ -71,8 +82,8 @@ class AirtableWrapper:
                 "last_updated",
             ]
         )
-        self.all_qbs = None
-        self.qb_options = []
+        self.all_qbs: pd.DataFrame | None = None
+        self.qb_options: list[str] = []
         self.perform_starter_update = perform_starter_update
 
         if not self.disabled:
@@ -93,6 +104,20 @@ class AirtableWrapper:
             self.qb_fields = []
             self.dropdown_field_id = None
             self.base_headers = {}
+
+    def _require_model_df(self) -> pd.DataFrame:
+        """Return the model dataframe, raising if it is unavailable."""
+        if self.model_df is None:
+            msg = "model_df must be populated before this operation"
+            raise ValueError(msg)
+        return self.model_df
+
+    def _require_all_qbs(self) -> pd.DataFrame:
+        """Return the cached quarterback dataframe, raising if it has not been built."""
+        if self.all_qbs is None:
+            msg = "all_qbs must be populated before this operation"
+            raise ValueError(msg)
+        return self.all_qbs
 
     # api wrapper functions
     def make_post_request(self, base, table, headers, data):
@@ -150,7 +175,7 @@ class AirtableWrapper:
         for record in records["records"]:
             all_records.append(record)
         # init var loops
-        if "offset" in records.keys():
+        if "offset" in records:
             offset = records["offset"]
             loops = 0
         else:
@@ -165,7 +190,7 @@ class AirtableWrapper:
             for record in records["records"]:
                 all_records.append(record)
             # update var loops
-            if "offset" in records.keys():
+            if "offset" in records:
                 offset = records["offset"]
                 loops += 1
             else:
@@ -217,13 +242,13 @@ class AirtableWrapper:
         self.make_patch_request(base=base, table=table, headers=self.base_headers, data=data)
 
     # perform upsert to airtable
-    def upsert_chunk(self, base, table, df, upsertFields, key):
+    def upsert_chunk(self, base, table, df, upsert_fields, key):
         # container for data to write to airtable
-        data = {"records": [], "performUpsert": {"fieldsToMergeOn": upsertFields}}
+        data = {"records": [], "performUpsert": {"fieldsToMergeOn": upsert_fields}}
         # get table cols
         table_cols = df.columns.values.tolist()
         # control for missing fields
-        for field in upsertFields:
+        for field in upsert_fields:
             if field not in table_cols:
                 print(f"     {field} is not included in data. Upsert will fail...")
         # iterate through chunk and add to data
@@ -350,10 +375,10 @@ class AirtableWrapper:
         # on subsequents records, upsert that record
         # on the final, delete the dummy record
         # container for dummy record id
-        dummy_id = None
+        dummy_id: str | None = None
         for index, value in enumerate(qb_options_to_write):
             # create record structure
-            data = {
+            data: dict[str, Any] = {
                 "records": [{"fields": {"team": "DUMMY", "qb_id": value}}],
                 "typecast": True,
             }
@@ -375,6 +400,9 @@ class AirtableWrapper:
                 resp = resp.json()
                 dummy_id = resp["records"][0]["id"]
             else:
+                if dummy_id is None:
+                    msg = "Dummy Airtable starter record was not created before update"
+                    raise ValueError(msg)
                 # update record with dummy id
                 data["records"][0]["id"] = dummy_id
                 # make a patch request
@@ -397,12 +425,13 @@ class AirtableWrapper:
     def get_qbs(self):
         # gets a unique set of QBs from the data file
         # note, this only stores QBs that have made a start
-        qbs = self.model_df.copy()
+        qbs = self._require_model_df().copy()
         # get most recent
-        qbs = qbs.sort_values(by=["gameday"], ascending=[False]).reset_index(drop=True)
+        qbs = qbs.sort_values(by=["gameday"], ascending=False).reset_index(drop=True)
         # add a field that combines id and display name
         qbs["qb_id"] = qbs["player_display_name"] + " - " + qbs["player_id"]
-        qbs = (
+        qbs = cast(
+            pd.DataFrame,
             qbs[
                 [
                     "qb_id",
@@ -415,7 +444,7 @@ class AirtableWrapper:
                 ]
             ]
             .groupby(["player_id"])
-            .head(1)
+            .head(1),
         )
         # return
         self.all_qbs = qbs
@@ -423,8 +452,8 @@ class AirtableWrapper:
     def get_last_starter(self):
         # for each team, determines last starter, which is assumed
         # to be the starter for the next week
-        starters = self.model_df.copy()
-        starters = starters.sort_values(by=["gameday"], ascending=[False]).reset_index(drop=True)
+        starters = self._require_model_df().copy()
+        starters = starters.sort_values(by=["gameday"], ascending=False).reset_index(drop=True)
         # add a field that combines id and display name
         starters["qb_id"] = starters["player_display_name"] + " - " + starters["player_id"]
         starters = (
@@ -452,17 +481,16 @@ class AirtableWrapper:
         self.get_existing_qbs()
         # get qbs from data
         self.get_qbs()
+        all_qbs = self._require_all_qbs()
         # get delta
-        delta = self.all_qbs[  # type: ignore
-            ~numpy.isin(self.all_qbs["player_id"], self.existing_qbs)  # type: ignore
-        ].copy()
+        delta = all_qbs[~numpy.isin(all_qbs["player_id"], self.existing_qbs)].copy()
         # determine write
         if len(delta) > 0:
             print(f"     Found {len(delta)} new QBs")
             # write
             self.write_qbs(delta)
             # update existing qbs so its accurate
-            for qb in delta["player_id"].unique().tolist():
+            for qb in cast(Any, delta["player_id"]).drop_duplicates().tolist():
                 self.existing_qbs.append(qb)
         else:
             print("     No new QBs needed")
@@ -477,14 +505,13 @@ class AirtableWrapper:
         # update existing options
         self.get_qb_options()
         # determine all values that should be in dropdown
-        delta = self.all_qbs[  # type: ignore
-            ~numpy.isin(self.all_qbs["qb_id"], self.qb_options)  # type: ignore
-        ].copy()
+        all_qbs = self._require_all_qbs()
+        delta = all_qbs[~numpy.isin(all_qbs["qb_id"], self.qb_options)].copy()
         # determine write
         if len(delta) > 0:
             print(f"     Found {len(delta)} new QB options")
             # write
-            self.write_qb_options(delta["qb_id"].unique().tolist())
+            self.write_qb_options(cast(Any, delta["qb_id"]).drop_duplicates().tolist())
         else:
             print("     No new QB options needed")
 
@@ -503,7 +530,8 @@ class AirtableWrapper:
         writes = []
         updates = []
         # loop through teams
-        for _, row in this_weeks_starters.iterrows():
+        for _, raw_row in this_weeks_starters.iterrows():
+            row = raw_row.to_dict()
             # get team
             team = row["team"]
             if team in existing_starters:
@@ -587,23 +615,37 @@ class AirtableWrapper:
                         for _, swap_row in manual_swaps.iterrows():
                             team = swap_row["team"]
                             # Default to pos_rank=2 if not specified (backward compatibility)
-                            target_pos_rank = int(swap_row.get("starting_pos_rank", 2))
+                            starting_pos_rank = swap_row.get("starting_pos_rank", 2)
+                            target_pos_rank = (
+                                2
+                                if starting_pos_rank is None
+                                or bool(pd.isnull(cast(Any, starting_pos_rank)))
+                                else int(cast(Any, starting_pos_rank))
+                            )
 
                             # Get all QBs for this team
-                            team_qbs = depth_charts[
-                                (depth_charts["team"] == team) & (depth_charts["pos_abb"] == "QB")
-                            ]
-                            if not team_qbs.empty:
+                            team_qbs = cast(
+                                pd.DataFrame,
+                                depth_charts[
+                                    (depth_charts["team"] == team)
+                                    & (depth_charts["pos_abb"] == "QB")
+                                ].copy(),
+                            )
+                            if len(team_qbs) > 0:
                                 # Find the most recent dt
                                 latest_dt = team_qbs["dt"].max()
-                                team_qbs_latest = team_qbs[team_qbs["dt"] == latest_dt]
+                                team_qbs_latest = cast(
+                                    pd.DataFrame,
+                                    team_qbs[team_qbs["dt"] == latest_dt].copy(),
+                                )
+                                pos_rank_series = cast(Any, team_qbs_latest["pos_rank"])
 
                                 # Check if target pos_rank exists
-                                if target_pos_rank in team_qbs_latest["pos_rank"].values:
+                                if target_pos_rank in pos_rank_series.tolist():
                                     # Get indices for pos_rank 1 and target_pos_rank
-                                    idx1 = team_qbs_latest[team_qbs_latest["pos_rank"] == 1].index
-                                    idx_target = team_qbs_latest[
-                                        team_qbs_latest["pos_rank"] == target_pos_rank
+                                    idx1 = team_qbs_latest.loc[pos_rank_series == 1].index
+                                    idx_target = team_qbs_latest.loc[
+                                        pos_rank_series == target_pos_rank
                                     ].index
 
                                     # Swap pos_rank values
@@ -616,10 +658,18 @@ class AirtableWrapper:
                     ]
 
                     # Pick the latest entry per team by week/date if present
-                    sort_cols = [col for col in ["dt", "team"] if col in quarterbacks.columns]
-                    if sort_cols:
-                        quarterbacks = quarterbacks.sort_values(by=sort_cols, ascending=True)
-                    quarterbacks = quarterbacks.groupby("team", as_index=False).tail(1)
+                    if "dt" in quarterbacks.columns:
+                        latest_dt_by_team = cast(Any, quarterbacks.groupby("team")["dt"]).transform(
+                            "max"
+                        )
+                        quarterbacks = cast(
+                            pd.DataFrame,
+                            quarterbacks[quarterbacks["dt"] == latest_dt_by_team].copy(),
+                        )
+                    quarterbacks = cast(
+                        pd.DataFrame,
+                        quarterbacks.groupby("team", as_index=False).tail(1),
+                    )
 
                     # Identify player id and name columns (nflverse uses gsis_id + full_name)
                     pid_col = "gsis_id" if "gsis_id" in quarterbacks.columns else None
@@ -627,21 +677,26 @@ class AirtableWrapper:
                     if pid_col is None or name_col is None:
                         raise RuntimeError("Depth charts missing player id/name columns")
 
-                    starters = quarterbacks[["team", pid_col, name_col]].rename(
-                        columns={pid_col: "player_id", name_col: "player_display_name"}
+                    starters = _rename_columns(
+                        quarterbacks[["team", pid_col, name_col]],
+                        {pid_col: "player_id", name_col: "player_display_name"},
                     )
 
                     # Attach draft_number from model_df if known
-                    if self.model_df is not None and len(self.model_df):
-                        drafts = self.model_df[["player_id", "draft_number"]].drop_duplicates(
-                            "player_id"
+                    model_df = self.model_df
+                    if model_df is not None and len(model_df) > 0:
+                        drafts = cast(
+                            pd.DataFrame,
+                            model_df[["player_id", "draft_number"]]
+                            .groupby("player_id", as_index=False)
+                            .head(1),
                         )
                         starters = starters.merge(drafts, on="player_id", how="left")
                     else:
                         starters["draft_number"] = numpy.nan
 
                     # Fill missing draft_number from nflverse players if possible
-                    if starters["draft_number"].isna().any():
+                    if bool(cast(Any, starters["draft_number"].isna().any())):
                         try:
                             players = _to_pandas(nfl.load_players())
                             if players is not None and len(players):
@@ -669,15 +724,17 @@ class AirtableWrapper:
                                     )
                                 )
                                 if p_pid and draft_col:
-                                    starters = starters.merge(
+                                    player_lookup = _rename_columns(
                                         players[
                                             [p_pid, draft_col] + ([name_col2] if name_col2 else [])
-                                        ].rename(
-                                            columns={
-                                                p_pid: "player_id",
-                                                draft_col: "draft_number",
-                                            }
-                                        ),
+                                        ],
+                                        {
+                                            p_pid: "player_id",
+                                            draft_col: "draft_number",
+                                        },
+                                    )
+                                    starters = starters.merge(
+                                        player_lookup,
                                         on="player_id",
                                         how="left",
                                         suffixes=("", "_players"),
@@ -703,16 +760,19 @@ class AirtableWrapper:
                     starters["last_updated"] = now_utc.isoformat()
 
                     # Store with the schema EloConstructor expects
-                    self.starters_df = starters[
-                        [
-                            "team",
-                            "player_id",
-                            "player_display_name",
-                            "draft_number",
-                            "last_updated",
-                            "qb_id",
-                        ]
-                    ]
+                    self.starters_df = cast(
+                        pd.DataFrame,
+                        starters[
+                            [
+                                "team",
+                                "player_id",
+                                "player_display_name",
+                                "draft_number",
+                                "last_updated",
+                                "qb_id",
+                            ]
+                        ],
+                    )
                     return
                 except (
                     KeyError,
@@ -727,7 +787,8 @@ class AirtableWrapper:
                     pass
 
             # Fallback: derive from most recent games (last starter)
-            if self.model_df is None or len(self.model_df) == 0:
+            model_df = self.model_df
+            if model_df is None or len(model_df) == 0:
                 self.starters_df = pd.DataFrame(
                     columns=[
                         "team",
@@ -741,12 +802,11 @@ class AirtableWrapper:
                 return
 
             latest = (
-                self.model_df.copy()
-                .sort_values(by=["gameday"], ascending=[False])
-                .reset_index(drop=True)
+                model_df.copy().sort_values(by=["gameday"], ascending=False).reset_index(drop=True)
             )
             latest["qb_id"] = latest["player_display_name"] + " - " + latest["player_id"]
-            starters = (
+            starters = cast(
+                pd.DataFrame,
                 latest[
                     [
                         "team",
@@ -757,20 +817,23 @@ class AirtableWrapper:
                     ]
                 ]
                 .groupby("team", as_index=False)
-                .head(1)
+                .head(1),
             )
             now_utc = pd.Timestamp.utcnow().tz_convert("UTC").isoformat()
             starters["last_updated"] = now_utc
-            self.starters_df = starters[
-                [
-                    "team",
-                    "player_id",
-                    "player_display_name",
-                    "draft_number",
-                    "last_updated",
-                    "qb_id",
-                ]
-            ]
+            self.starters_df = cast(
+                pd.DataFrame,
+                starters[
+                    [
+                        "team",
+                        "player_id",
+                        "player_display_name",
+                        "draft_number",
+                        "last_updated",
+                        "qb_id",
+                    ]
+                ],
+            )
             return
 
         # pulls the current starters from the airtable
@@ -822,8 +885,6 @@ class AirtableWrapper:
             starters["last_updated"], errors="coerce", utc=True
         )
         # sort
-        starters = starters.sort_values(by=["last_updated"], ascending=[False]).reset_index(
-            drop=True
-        )
+        starters = starters.sort_values(by=["last_updated"], ascending=False).reset_index(drop=True)
         # return most recent
         return starters.iloc[0]["last_updated"]
