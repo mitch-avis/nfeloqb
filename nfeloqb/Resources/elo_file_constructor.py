@@ -169,26 +169,12 @@ class EloConstructor:
         unplayed = games[(pd.isnull(games["result"])) & (games["gameday"] >= now_utc)].copy()
 
         if len(unplayed) == 0:
-            # fallback: choose within the max season of any unplayed
-            unplayed_any = cast(pd.DataFrame, self.games[pd.isnull(self.games["result"])].copy())
-            if len(unplayed_any) == 0:
-                self.next_games = None
-                return
-            season = int(cast(Any, unplayed_any["season"]).max())
-            season_games = cast(
-                pd.DataFrame,
-                unplayed_any[unplayed_any["season"] == season].copy(),
-            )
-            week = int(cast(Any, season_games["week"]).min())
-        else:
-            # pick the earliest unplayed date, and use that row's season+week
-            first_idx = cast(Any, unplayed["gameday"]).idxmin()
-            season = int(cast(Any, unplayed.loc[first_idx, "season"]))
-            week = int(cast(Any, unplayed.loc[first_idx, "week"]))
-
-        # filter to that season+week
-        next_games = self.games[
-            (self.games["season"] == season) & (self.games["week"] == week)
+            return None
+        ## if there is a next week, keep only unplayed games ##
+        ## played games in the same week are already in new_games ##
+        next_games = unplayed[
+            (unplayed["season"] == unplayed.iloc[0]["season"])
+            & (unplayed["week"] == unplayed.iloc[0]["week"])
         ].copy()
 
         # normalize team codes to modern abbreviations so they match starters and elo maps
