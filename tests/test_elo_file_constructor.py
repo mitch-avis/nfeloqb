@@ -69,3 +69,51 @@ def test_get_next_games_keeps_only_unplayed_games_from_next_week() -> None:
 
     assert constructor.next_games is not None
     assert constructor.next_games["game_id"].tolist() == ["next"]
+
+
+def test_create_new_file_formats_projected_gameday_as_iso_date() -> None:
+    """Projected rows should export dates without time or timezone components."""
+    constructor = object.__new__(EloConstructor)
+    constructor.original_elo_file = pd.DataFrame(columns=["date"])
+    constructor.original_elo_cols = constructor.original_elo_file.columns.to_list()
+    constructor.new_file_data = []
+    constructor.new_file_games = pd.DataFrame(
+        {
+            "gameday": [pd.Timestamp("2026-09-20 00:00:00+00:00")],
+            "season": [2026],
+            "week": [2],
+            "home_team": ["BUF"],
+            "away_team": ["DET"],
+            "home_score": [pd.NA],
+            "away_score": [pd.NA],
+            "qb1": ["Josh Allen"],
+            "qb2": ["Jared Goff"],
+            "qb1_value_pre": [1.0],
+            "qb2_value_pre": [2.0],
+            "qb1_value_post": [1.5],
+            "qb2_value_post": [2.5],
+            "qb1_adj": [0.1],
+            "qb2_adj": [0.2],
+            "qb1_game_value": [1.2],
+            "qb2_game_value": [2.2],
+            "elo1_pre": [1600.0],
+            "elo2_pre": [1500.0],
+            "elo_prob1": [0.6],
+            "elo_prob2": [0.4],
+            "elo1_post": [pd.NA],
+            "elo2_post": [pd.NA],
+            "qbelo1_pre": [1601.0],
+            "qbelo2_pre": [1501.0],
+            "qbelo_prob1": [0.61],
+            "qbelo_prob2": [0.39],
+            "qbelo1_post": [pd.NA],
+            "qbelo2_post": [pd.NA],
+            "location": ["Home"],
+            "game_type": ["REG"],
+        }
+    )
+
+    constructor.create_new_file()
+
+    assert constructor.new_file is not None
+    assert constructor.new_file.loc[0, "date"] == "2026-09-20"
