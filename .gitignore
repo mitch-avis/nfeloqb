@@ -6,8 +6,7 @@ __pycache__
 venv/
 .venv/
 .coverage
-
-
+.bash_history
 /nfeloqb/Optimizer/In-flight Results/*.csv
 /nfeloqb/Optimizer/Results/*.csv
 /Development/*.csv
