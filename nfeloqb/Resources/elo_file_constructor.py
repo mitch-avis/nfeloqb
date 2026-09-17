@@ -170,8 +170,8 @@ class EloConstructor:
 
         if len(unplayed) == 0:
             return None
-        ## if there is a next week, keep only unplayed games ##
-        ## played games in the same week are already in new_games ##
+        ## if there is a next week, keep only unplayed games
+        ## played games in the same week are already in new_games
         next_games = unplayed[
             (unplayed["season"] == unplayed.iloc[0]["season"])
             & (unplayed["week"] == unplayed.iloc[0]["week"])
