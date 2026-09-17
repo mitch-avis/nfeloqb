@@ -29,6 +29,17 @@ def _map_team(code: str) -> str:
         return code
 
 
+def _format_export_date(value: Any) -> Any:
+    if pd.isna(value):
+        return value
+
+    parsed = pd.to_datetime(value, errors="coerce")
+    if pd.isna(parsed):
+        return value
+
+    return parsed.strftime("%Y-%m-%d")
+
+
 class EloConstructor:
     """Build a FiveThirtyEight-style Elo export from model and schedule inputs."""
 
@@ -415,7 +426,7 @@ class EloConstructor:
         for col in self.original_elo_cols:
             new_row[col] = numpy.nan
         # add in the values
-        new_row["date"] = row["gameday"]
+        new_row["date"] = _format_export_date(row["gameday"])
         new_row["season"] = row["season"]
         new_row["team1"] = row["home_team"]
         new_row["team2"] = row["away_team"]
