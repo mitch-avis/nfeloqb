@@ -10,11 +10,11 @@ license = { text = "MIT" }
 dependencies = [
     "nfelodcm>=0.2",
     "nflreadpy>=0.1",
-    "numpy<2.4.6",
+    "numpy>=2.5",
     "pandas>=3.0",
     "polars>=1.44",
     "python-dotenv>=1.2",
-    "requests<2.34.2",
+    "requests>=2.34",
     "scipy>=1.18",
 ]
 classifiers = [
