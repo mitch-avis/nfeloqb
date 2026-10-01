@@ -1,7 +1,3 @@
-[build-system]
-requires = ["hatchling>=1.30"]
-build-backend = "hatchling.build"
-
 [project]
 name = "nfeloqb"
 version = "0.2.6"
@@ -12,13 +8,14 @@ keywords = ["stats", "sports", "football", "machine learning"]
 authors = [{ name = "Mitch Avis", email = "mitchavis@gmail.com" }]
 license = { text = "MIT" }
 dependencies = [
-    "nfelodcm",
-    "nflreadpy",
-    "numpy",
-    "pandas",
-    "polars",
-    "python-dotenv",
-    "scipy",
+    "nfelodcm>=0.2",
+    "nflreadpy>=0.1",
+    "numpy<2.4.6",
+    "pandas>=3.0",
+    "polars>=1.44",
+    "python-dotenv>=1.2",
+    "requests<2.34.2",
+    "scipy>=1.18",
 ]
 classifiers = [
     "Programming Language :: Python :: 3.14",
@@ -31,24 +28,30 @@ Homepage = "https://github.com/mitch-avis/nfeloqb"
 
 [dependency-groups]
 dev = [
-    "colorama",
-    "pyright",
-    "pytest",
-    "pytest-cov",
-    "pytest-html",
-    "pytest-metadata",
-    "pytest-sugar",
-    "pytest-xdist",
-    "ruff",
-    "ty",
+    "colorama>=0.4",
+    "pyright>=1.1",
+    "pytest>=9.1",
+    "pytest-cov>=7.1",
+    "pytest-html>=4.2",
+    "pytest-metadata>=3.1",
+    "pytest-sugar>=1.1",
+    "pytest-xdist>=3.8",
+    "ruff>=0.16",
+    "ty>=0.0.84",
 ]
 
-[tool.hatch.build.targets.wheel]
-packages = ["nfeloqb"]
+[build-system]
+requires = ["uv_build>=0.12"]
+build-backend = "uv_build"
 
 [tool.uv]
 default-groups = ["dev"]
-required-version = ">=0.11.21"
+required-version = ">=0.12"
+
+[tool.uv.build-backend]
+module-root = ""
+module-name = "nfeloqb"
+namespace = true
 
 [tool.ruff]
 line-length = 100
@@ -86,7 +89,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "D"] # Use of assert is standard in pytest
+"tests/**/*.py" = ["S101", "D"]                        # Use of assert is standard in pytest
 "nfeloqb/Optimizer/ConfigOptimizer.py" = ["D", "N999"]
 "nfeloqb/DataModels/GameContext.py" = ["N999"]
 "nfeloqb/DataModels/ModelConfig.py" = ["N999"]

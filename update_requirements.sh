@@ -22,7 +22,7 @@ If compatibility requirements files are present, they are refreshed from uv.lock
 
 Examples:
 	./update_requirements.sh
-	./update_requirements.sh --python 3.13
+	./update_requirements.sh --python 3.14
 
 When no --python argument is provided, uv chooses the newest compatible Python
 according to the project's configuration and local uv installation.
@@ -40,6 +40,15 @@ die() {
 
 canonical_path() {
 	cd "$1" >/dev/null 2>&1 && pwd -P
+}
+
+venv_python() {
+	echo "$VENV_PATH/bin/python"
+}
+
+python_stdlib_smoke_test() {
+	local python_bin="$1"
+	"$python_bin" -c "import dis; import json" >/dev/null 2>&1
 }
 
 confirm() {
@@ -94,6 +103,45 @@ create_venv() {
 	"${command[@]}"
 }
 
+repair_venv_with_system_python() {
+	local -a command=(uv venv .venv --clear --no-managed-python)
+	local python_bin
+
+	if [[ -n "$PYTHON_REQUEST" ]]; then
+		command+=(--python "$PYTHON_REQUEST")
+	fi
+
+	info "Recreating .venv with a system Python after the current interpreter failed stdlib imports"
+	"${command[@]}"
+
+	python_bin="$(venv_python)"
+	if ! python_stdlib_smoke_test "$python_bin"; then
+		die "The recreated .venv still failed stdlib imports. Repair or replace your local Python install, then rerun this script."
+	fi
+}
+
+ensure_venv_python_is_healthy() {
+	local python_bin
+	local repair_command="uv venv .venv --clear --no-managed-python"
+
+	if [[ -n "$PYTHON_REQUEST" ]]; then
+		repair_command+=" --python $PYTHON_REQUEST"
+	fi
+
+	python_bin="$(venv_python)"
+	if python_stdlib_smoke_test "$python_bin"; then
+		return
+	fi
+
+	info "The current .venv interpreter failed a stdlib smoke test"
+	echo "The environment was likely created from a broken uv-managed Python install." >&2
+	if ! confirm "Recreate .venv in place with a system Python and continue?"; then
+		die "Recreate the environment with '$repair_command', reactivate it if needed, and rerun this script."
+	fi
+
+	repair_venv_with_system_python
+}
+
 ensure_venv_exists() {
 	local create_command="uv venv .venv"
 
@@ -111,6 +159,7 @@ ensure_venv_exists() {
 	fi
 
 	create_venv
+	ensure_venv_python_is_healthy
 	info "Created .venv. Activate it with: source .venv/bin/activate"
 	info "Then rerun ./update_requirements.sh"
 	exit 0
@@ -187,6 +236,7 @@ main() {
 	ensure_pyproject_exists
 	ensure_venv_exists
 	ensure_venv_is_active
+	ensure_venv_python_is_healthy
 
 	# If supported, keep uv itself up to date (no-op on older uv builds).
 	uv self update >/dev/null 2>&1 || true
