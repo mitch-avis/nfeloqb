@@ -12,7 +12,7 @@ dependencies = [
     "nflreadpy>=0.1",
     "numpy>=2.5",
     "pandas>=3.0",
-    "polars>=1.44",
+    "polars>=2.0",
     "python-dotenv>=1.2",
     "requests>=2.34",
     "scipy>=1.18",
@@ -37,7 +37,7 @@ dev = [
     "pytest-sugar>=1.1",
     "pytest-xdist>=3.8",
     "ruff>=0.16",
-    "ty>=0.0.84",
+    "ty>=0.0.85",
 ]
 
 [build-system]
