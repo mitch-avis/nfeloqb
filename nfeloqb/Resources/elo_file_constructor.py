@@ -332,12 +332,12 @@ class EloConstructor:
 
             def apply_elo_to_next(row):
                 ##  get home and away elos ##
-                home_elo = self.elo.current_elos[row['home_team']]
-                away_elo = self.elo.current_elos[row['away_team']]
-                home_qbelo = self.elo.current_qbelos[row['home_team']]
-                away_qbelo = self.elo.current_qbelos[row['away_team']]
-                home_qb_elo_adj = row['qb1_adj'] * 3.3
-                away_qb_elo_adj = row['qb2_adj'] * 3.3
+                home_elo = self.elo.current_elos[row["home_team"]]
+                away_elo = self.elo.current_elos[row["away_team"]]
+                home_qbelo = self.elo.current_qbelos[row["home_team"]]
+                away_qbelo = self.elo.current_qbelos[row["away_team"]]
+                home_qb_elo_adj = row["qb1_adj"] * 3.3
+                away_qb_elo_adj = row["qb2_adj"] * 3.3
                 ## determine if there is a bye ##
                 bye_adj = 0
                 if row["home_rest"] >= 10:
@@ -351,25 +351,27 @@ class EloConstructor:
                     hfa_adj = hfa
                 ## calc elo dif ##
                 elo_dif = home_elo - away_elo + bye_adj + hfa_adj
-                qbelo_dif = home_qbelo - away_qbelo + bye_adj + hfa_adj + home_qb_elo_adj - away_qb_elo_adj
+                qbelo_dif = (
+                    home_qbelo - away_qbelo + bye_adj + hfa_adj + home_qb_elo_adj - away_qb_elo_adj
+                )
                 ## get prob ##
-                home_prob = 1 / (10 ** (-elo_dif/self.elo.b) + 1)
+                home_prob = 1 / (10 ** (-elo_dif / self.elo.b) + 1)
                 away_prob = 1 - home_prob
-                home_qbelo_prob = 1 / (10 ** (-qbelo_dif/self.elo.b) + 1)
+                home_qbelo_prob = 1 / (10 ** (-qbelo_dif / self.elo.b) + 1)
                 away_qbelo_prob = 1 - home_qbelo_prob
                 ## add to row ##
-                row['elo1_pre'] = home_elo
-                row['elo2_pre'] = away_elo
-                row['elo_prob1'] = home_prob
-                row['elo_prob2'] = away_prob
-                row['elo1_post'] = numpy.nan
-                row['elo2_post'] = numpy.nan
-                row['qbelo1_pre'] = home_qbelo
-                row['qbelo2_pre'] = away_qbelo
-                row['qbelo_prob1'] = home_qbelo_prob
-                row['qbelo_prob2'] = away_qbelo_prob
-                row['qbelo1_post'] = numpy.nan
-                row['qbelo2_post'] = numpy.nan
+                row["elo1_pre"] = home_elo
+                row["elo2_pre"] = away_elo
+                row["elo_prob1"] = home_prob
+                row["elo_prob2"] = away_prob
+                row["elo1_post"] = numpy.nan
+                row["elo2_post"] = numpy.nan
+                row["qbelo1_pre"] = home_qbelo
+                row["qbelo2_pre"] = away_qbelo
+                row["qbelo_prob1"] = home_qbelo_prob
+                row["qbelo_prob2"] = away_qbelo_prob
+                row["qbelo1_post"] = numpy.nan
+                row["qbelo2_post"] = numpy.nan
                 ## return ##
                 return row
 
