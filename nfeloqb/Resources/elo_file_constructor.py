@@ -331,24 +331,14 @@ class EloConstructor:
             hfa = self.elo.current_hfa
 
             def apply_elo_to_next(row):
-                # map teams to modern codes for lookup
-                hteam = _map_team(row["home_team"])
-                ateam = _map_team(row["away_team"])
-
-                # safe lookup with fallback to average elo if missing
-                home_elo = current_elos_norm.get(hteam)
-                away_elo = current_elos_norm.get(ateam)
-                if home_elo is None or away_elo is None:
-                    # fallback: mean of known elos (or 1500 if empty)
-                    mean_elo = (
-                        float(numpy.mean(list(current_elos_norm.values())))
-                        if len(current_elos_norm) > 0
-                        else 1500.0
-                    )
-                    home_elo = home_elo if home_elo is not None else mean_elo
-                    away_elo = away_elo if away_elo is not None else mean_elo
-
-                # determine if there is a bye
+                ##  get home and away elos ##
+                home_elo = self.elo.current_elos[row['home_team']]
+                away_elo = self.elo.current_elos[row['away_team']]
+                home_qbelo = self.elo.current_qbelos[row['home_team']]
+                away_qbelo = self.elo.current_qbelos[row['away_team']]
+                home_qb_elo_adj = row['qb1_adj'] * 3.3
+                away_qb_elo_adj = row['qb2_adj'] * 3.3
+                ## determine if there is a bye ##
                 bye_adj = 0
                 if row["home_rest"] >= 10:
                     bye_adj += 1
@@ -359,27 +349,28 @@ class EloConstructor:
                 hfa_adj = 0
                 if row["location"] == "Home":
                     hfa_adj = hfa
-                # calc elo dif
-                elo_dif_ex_qb = home_elo - away_elo + bye_adj + hfa_adj
-                elo_dif = home_elo - away_elo + bye_adj + hfa_adj + row["qb1_adj"] - row["qb2_adj"]
-                # get prob
-                home_prob = 1 / (10 ** (-elo_dif / self.elo.b) + 1)
+                ## calc elo dif ##
+                elo_dif = home_elo - away_elo + bye_adj + hfa_adj
+                qbelo_dif = home_qbelo - away_qbelo + bye_adj + hfa_adj + home_qb_elo_adj - away_qb_elo_adj
+                ## get prob ##
+                home_prob = 1 / (10 ** (-elo_dif/self.elo.b) + 1)
                 away_prob = 1 - home_prob
-                home_prob_ex_qb = 1 / (10 ** (-elo_dif_ex_qb / self.elo.b) + 1)
-                away_prob_ex_qb = 1 - home_prob_ex_qb
-                # add to row
-                row["elo1_pre"] = home_elo
-                row["elo2_pre"] = away_elo
-                row["elo_prob1"] = home_prob_ex_qb
-                row["elo_prob2"] = away_prob_ex_qb
-                row["elo1_post"] = numpy.nan
-                row["elo2_post"] = numpy.nan
-                row["qbelo1_pre"] = home_elo + row["qb1_adj"]
-                row["qbelo2_pre"] = away_elo + row["qb2_adj"]
-                row["qbelo_prob1"] = home_prob
-                row["qbelo_prob2"] = away_prob
-                row["qbelo1_post"] = numpy.nan
-                row["qbelo2_post"] = numpy.nan
+                home_qbelo_prob = 1 / (10 ** (-qbelo_dif/self.elo.b) + 1)
+                away_qbelo_prob = 1 - home_qbelo_prob
+                ## add to row ##
+                row['elo1_pre'] = home_elo
+                row['elo2_pre'] = away_elo
+                row['elo_prob1'] = home_prob
+                row['elo_prob2'] = away_prob
+                row['elo1_post'] = numpy.nan
+                row['elo2_post'] = numpy.nan
+                row['qbelo1_pre'] = home_qbelo
+                row['qbelo2_pre'] = away_qbelo
+                row['qbelo_prob1'] = home_qbelo_prob
+                row['qbelo_prob2'] = away_qbelo_prob
+                row['qbelo1_post'] = numpy.nan
+                row['qbelo2_post'] = numpy.nan
+                ## return ##
                 return row
 
             # apply
