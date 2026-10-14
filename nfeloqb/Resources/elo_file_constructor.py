@@ -29,6 +29,17 @@ def _map_team(code: str) -> str:
         return code
 
 
+def _ratings_for(ratings: dict[str, float], home: str, away: str) -> tuple[float, float]:
+    """Look up two teams' ratings, rating a missing team at the mean (1500 when empty)."""
+    home_rating = ratings.get(home)
+    away_rating = ratings.get(away)
+    if home_rating is None or away_rating is None:
+        mean_rating = float(numpy.mean(list(ratings.values()))) if ratings else 1500.0
+        home_rating = mean_rating if home_rating is None else home_rating
+        away_rating = mean_rating if away_rating is None else away_rating
+    return home_rating, away_rating
+
+
 def _format_export_date(value: Any) -> Any:
     if pd.isna(value):
         return value
@@ -328,14 +339,15 @@ class EloConstructor:
         if self.next_games is not None:
             # Normalize Elo team keys to modern codes so lookups match next_games
             current_elos_norm = {_map_team(k): v for k, v in self.elo.current_elos.items()}
+            current_qbelos_norm = {_map_team(k): v for k, v in self.elo.current_qbelos.items()}
             hfa = self.elo.current_hfa
 
             def apply_elo_to_next(row):
-                ##  get home and away elos ##
-                home_elo = self.elo.current_elos[row["home_team"]]
-                away_elo = self.elo.current_elos[row["away_team"]]
-                home_qbelo = self.elo.current_qbelos[row["home_team"]]
-                away_qbelo = self.elo.current_qbelos[row["away_team"]]
+                # map teams to modern codes and look up both models' ratings
+                hteam = _map_team(row["home_team"])
+                ateam = _map_team(row["away_team"])
+                home_elo, away_elo = _ratings_for(current_elos_norm, hteam, ateam)
+                home_qbelo, away_qbelo = _ratings_for(current_qbelos_norm, hteam, ateam)
                 home_qb_elo_adj = row["qb1_adj"] * 3.3
                 away_qb_elo_adj = row["qb2_adj"] * 3.3
                 ## determine if there is a bye ##
