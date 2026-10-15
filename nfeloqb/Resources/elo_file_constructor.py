@@ -1,5 +1,6 @@
 """Construct the downstream qb_elos.csv export from model outputs and schedule data."""
 
+from collections.abc import Iterable
 from typing import Any, cast
 
 import numpy
@@ -27,6 +28,17 @@ def _map_team(code: str) -> str:
         return TEAM_ALIAS.get(code, code)
     except KeyError:
         return code
+
+
+def _stored_team_code(code: str, stored: Iterable[str]) -> str:
+    """Return the code a model stores a team under: the modern code, else a legacy alias of it."""
+    stored = set(stored)
+    if code in stored:
+        return code
+    for legacy, modern in TEAM_ALIAS.items():
+        if modern == code and legacy in stored:
+            return legacy
+    return code
 
 
 def _ratings_for(ratings: dict[str, float], home: str, away: str) -> tuple[float, float]:
@@ -258,12 +270,13 @@ class EloConstructor:
                     qb_id = starter["qb_id"]
                     qb_name = starter["qb_name"]
                     draft_number = starter["draft_number"]
+                # the QB model keeps a team's state under the code its history used (`OAK`)
                 qb_obj, team_obj, _ = self.qb_model.get_objects(
                     {
                         "player_id": qb_id,
                         "player_display_name": qb_name,
-                        "team": team_code,
-                        "opponent": opp_code,
+                        "team": _stored_team_code(team_code, self.qb_model.teams),
+                        "opponent": _stored_team_code(opp_code, self.qb_model.teams),
                         "season": row["season"],
                         "draft_number": draft_number,
                         "gameday": row["gameday"],

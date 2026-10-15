@@ -137,6 +137,74 @@ def test_projections_find_ratings_stored_under_legacy_team_codes() -> None:
     assert row["qbelo_prob1"] == pytest.approx(_win_prob(100.0 + 10 * QB_ADJ_TO_ELO))
 
 
+class _FakeQBModel:
+    """Hold team states by code and create missing ones, as the QB model's `get_team` does."""
+
+    def __init__(self, team_off_values: dict[str, float], qb_value: float) -> None:
+        self.teams = {code: SimpleNamespace(off_value=v) for code, v in team_off_values.items()}
+        self.qb_value = qb_value
+
+    def get_objects(self, row: dict[str, Any]) -> tuple[Any, Any, Any]:
+        team = self.teams.setdefault(row["team"], SimpleNamespace(off_value=25.0))
+        opponent = self.teams.setdefault(row["opponent"], SimpleNamespace(off_value=25.0))
+        return SimpleNamespace(current_value=self.qb_value), team, opponent
+
+
+def _project_starters(qb_model: _FakeQBModel) -> pd.Series:
+    """Attach starters and QB adjustments to one upcoming LV-at-home game against the Rams."""
+    constructor = object.__new__(EloConstructor)
+    constructor.qb_model = cast(Any, qb_model)
+    constructor.at_wrapper = cast(
+        Any,
+        SimpleNamespace(
+            pull_current_starters=lambda: None,
+            starters_df=pd.DataFrame(
+                {
+                    "team": ["LV", "LA"],
+                    "player_id": ["00-1", "00-2"],
+                    "player_display_name": ["Home QB", "Away QB"],
+                    "draft_number": [1, 2],
+                }
+            ),
+        ),
+    )
+    constructor.next_games = pd.DataFrame(
+        {
+            "season": [2030],
+            "gameday": ["2030-10-18"],
+            "home_team": ["LV"],
+            "away_team": ["LA"],
+        }
+    )
+    constructor.add_starters_and_team_values()
+    assert constructor.next_games is not None
+    return constructor.next_games.iloc[0]
+
+
+def test_projected_qb_adjustments_use_teams_stored_under_legacy_codes() -> None:
+    # Arrange
+    qb_model = _FakeQBModel({"OAK": 60.0, "LAR": 50.0}, qb_value=70.0)
+
+    # Act
+    row = _project_starters(qb_model)
+
+    # Assert
+    assert row["qb1_adj"] == pytest.approx(10.0)
+    assert row["qb2_adj"] == pytest.approx(20.0)
+    assert "LV" not in qb_model.teams
+
+
+def test_projected_qb_adjustments_prefer_a_team_stored_under_the_modern_code() -> None:
+    # Arrange
+    qb_model = _FakeQBModel({"OAK": 60.0, "LV": 40.0, "LAR": 50.0}, qb_value=70.0)
+
+    # Act
+    row = _project_starters(qb_model)
+
+    # Assert
+    assert row["qb1_adj"] == pytest.approx(30.0)
+
+
 def test_projections_rate_an_unknown_team_at_the_mean_of_each_model() -> None:
     # Arrange
     elos = {"LV": 1600.0, "KC": 1400.0}
