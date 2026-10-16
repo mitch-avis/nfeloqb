@@ -284,21 +284,25 @@ class EloConstructor:
                 )
                 return starter, qb_obj, team_obj
 
+            # rate each starter with `get_value`, as the played row does, so a backup's first
+            # start gets the backup rule
             # home
             hstarter, hqb, hteam_obj = get_objs(hteam, ateam)
+            hqb_value = hqb.get_value(hteam_obj)
             row["qb1_id"] = (hstarter or {}).get("qb_id", numpy.nan)
             row["qb1"] = (hstarter or {}).get("qb_name", "Unknown QB")
-            row["qb1_value_pre"] = hqb.current_value
-            row["qb1_adj"] = hqb.current_value - hteam_obj.off_value
+            row["qb1_value_pre"] = hqb_value
+            row["qb1_adj"] = hqb_value - hteam_obj.off_value
             row["qb1_game_value"] = numpy.nan
             row["qb1_value_post"] = numpy.nan
 
             # away
             astarter, aqb, ateam_obj = get_objs(ateam, hteam)
+            aqb_value = aqb.get_value(ateam_obj)
             row["qb2_id"] = (astarter or {}).get("qb_id", numpy.nan)
             row["qb2"] = (astarter or {}).get("qb_name", "Unknown QB")
-            row["qb2_value_pre"] = aqb.current_value
-            row["qb2_adj"] = aqb.current_value - ateam_obj.off_value
+            row["qb2_value_pre"] = aqb_value
+            row["qb2_adj"] = aqb_value - ateam_obj.off_value
             row["qb2_game_value"] = numpy.nan
             row["qb2_value_post"] = numpy.nan
 

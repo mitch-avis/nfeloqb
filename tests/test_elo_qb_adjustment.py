@@ -1,17 +1,24 @@
 """Tests for how the QB adjustment enters the Elo and QB-adjusted Elo models."""
 
 import math
+import pathlib
 from types import SimpleNamespace
 from typing import Any, cast
 
 import pandas as pd
 import pytest
 
+from nfeloqb.DataModels import ModelConfig
 from nfeloqb.Resources.elo import Elo
 from nfeloqb.Resources.elo_file_constructor import EloConstructor
+from nfeloqb.Resources.qb_model import QBModel
 
 BASE = 1505
 QB_ADJ_TO_ELO = 3.3
+MODEL_CONFIG = pathlib.Path(__file__).parent.parent / "model_config.json"
+STARTER = ("00-0000001", "Starter QB", 1.0)
+BACKUP = ("00-0000002", "Backup QB", 250.0)
+RIVAL = ("00-0000003", "Rival QB", 10.0)
 
 
 def _run_one_game(home_qb_adj: float, away_qb_adj: float, result: float | None) -> pd.Series:
@@ -147,23 +154,28 @@ class _FakeQBModel:
     def get_objects(self, row: dict[str, Any]) -> tuple[Any, Any, Any]:
         team = self.teams.setdefault(row["team"], SimpleNamespace(off_value=25.0))
         opponent = self.teams.setdefault(row["opponent"], SimpleNamespace(off_value=25.0))
-        return SimpleNamespace(current_value=self.qb_value), team, opponent
+        return SimpleNamespace(get_value=lambda _team: self.qb_value), team, opponent
 
 
-def _project_starters(qb_model: _FakeQBModel) -> pd.Series:
-    """Attach starters and QB adjustments to one upcoming LV-at-home game against the Rams."""
+def _project_game(
+    qb_model: Any,
+    starters: dict[str, tuple[str, str, float]],
+    home_team: str,
+    away_team: str,
+) -> pd.Series:
+    """Attach the given starters and their QB adjustments to one upcoming 2030 game."""
     constructor = object.__new__(EloConstructor)
-    constructor.qb_model = cast(Any, qb_model)
+    constructor.qb_model = qb_model
     constructor.at_wrapper = cast(
         Any,
         SimpleNamespace(
             pull_current_starters=lambda: None,
             starters_df=pd.DataFrame(
                 {
-                    "team": ["LV", "LA"],
-                    "player_id": ["00-1", "00-2"],
-                    "player_display_name": ["Home QB", "Away QB"],
-                    "draft_number": [1, 2],
+                    "team": list(starters),
+                    "player_id": [qb[0] for qb in starters.values()],
+                    "player_display_name": [qb[1] for qb in starters.values()],
+                    "draft_number": [qb[2] for qb in starters.values()],
                 }
             ),
         ),
@@ -172,13 +184,19 @@ def _project_starters(qb_model: _FakeQBModel) -> pd.Series:
         {
             "season": [2030],
             "gameday": ["2030-10-18"],
-            "home_team": ["LV"],
-            "away_team": ["LA"],
+            "home_team": [home_team],
+            "away_team": [away_team],
         }
     )
     constructor.add_starters_and_team_values()
     assert constructor.next_games is not None
     return constructor.next_games.iloc[0]
+
+
+def _project_starters(qb_model: _FakeQBModel) -> pd.Series:
+    """Attach starters and QB adjustments to one upcoming LV-at-home game against the Rams."""
+    starters = {"LV": ("00-1", "Home QB", 1.0), "LA": ("00-2", "Away QB", 2.0)}
+    return _project_game(qb_model, starters, home_team="LV", away_team="LA")
 
 
 def test_projected_qb_adjustments_use_teams_stored_under_legacy_codes() -> None:
@@ -216,3 +234,84 @@ def test_projections_rate_an_unknown_team_at_the_mean_of_each_model() -> None:
     # Assert
     assert row["elo2_pre"] == pytest.approx(1500.0)
     assert row["qbelo2_pre"] == pytest.approx(1530.0)
+
+
+def _qb_model(aaa_starters: list[tuple[str, str, float]]) -> QBModel:
+    """Run the QB model over 2030 weeks in which AAA, starting the given QBs, hosts BBB.
+
+    AAA's QBs outplay the team's expectation every week, so AAA builds a season of positive
+    QB adjustments that a backup's first start draws on.
+    """
+    rows = []
+    for week, aaa_qb in enumerate(aaa_starters, start=1):
+        for team, opponent, (qb_id, qb_name, draft_number), value in (
+            ("AAA", "BBB", aaa_qb, 80.0),
+            ("BBB", "AAA", RIVAL, 40.0),
+        ):
+            rows.append(
+                {
+                    "game_id": f"2030_{week:02d}_BBB_AAA",
+                    "season": 2030,
+                    "week": week,
+                    "gameday": f"2030-09-{week + 10:02d}",
+                    "team": team,
+                    "opponent": opponent,
+                    "player_id": qb_id,
+                    "player_display_name": qb_name,
+                    "draft_number": draft_number,
+                    "player_VALUE": value,
+                    "team_VALUE": value,
+                    "temp": 70,
+                    "wind": 0,
+                }
+            )
+    model = QBModel(pd.DataFrame(rows), ModelConfig.from_file(str(MODEL_CONFIG)))
+    model.run_model()
+    return model
+
+
+def _played_week_four(aaa_qb: tuple[str, str, float]) -> dict[str, Any]:
+    """Return AAA's QB model record for week 4 when ``aaa_qb`` starts it after three starts."""
+    model = _qb_model([STARTER, STARTER, STARTER, aaa_qb])
+    return next(r for r in model.data if r["week"] == 4 and r["team"] == "AAA")
+
+
+@pytest.mark.parametrize(("aaa_side", "qb_col"), [("home", "qb1"), ("away", "qb2")])
+@pytest.mark.parametrize("aaa_qb", [BACKUP, STARTER], ids=["backup_first_start", "regular"])
+def test_projected_qb_value_matches_the_played_pre_game_value(
+    aaa_side: str, qb_col: str, aaa_qb: tuple[str, str, float]
+) -> None:
+    # Arrange
+    played = _played_week_four(aaa_qb)
+    model = _qb_model([STARTER, STARTER, STARTER])
+    home, away = ("AAA", "BBB") if aaa_side == "home" else ("BBB", "AAA")
+
+    # Act
+    row = _project_game(model, {"AAA": aaa_qb, "BBB": RIVAL}, home_team=home, away_team=away)
+
+    # Assert
+    assert row[f"{qb_col}_value_pre"] == pytest.approx(played["qb_value_pre"])
+    assert row[f"{qb_col}_adj"] == pytest.approx(played["qb_adj"])
+
+
+def test_a_backups_first_start_projection_adds_the_team_adjustment_share() -> None:
+    # Arrange
+    model = _qb_model([STARTER, STARTER, STARTER])
+    draft_value = model.get_qb(
+        {
+            "player_id": BACKUP[0],
+            "player_display_name": BACKUP[1],
+            "draft_number": BACKUP[2],
+            "season": 2030,
+            "team": "AAA",
+            "gameday": "2030-10-18",
+        }
+    ).current_value
+    share = model.teams["AAA"].season_adjs * model.config.values["player_team_adj_allotment_disc"]
+
+    # Act
+    row = _project_game(model, {"AAA": BACKUP, "BBB": RIVAL}, home_team="AAA", away_team="BBB")
+
+    # Assert
+    assert share > 0
+    assert row["qb1_value_pre"] == pytest.approx(draft_value + share)
