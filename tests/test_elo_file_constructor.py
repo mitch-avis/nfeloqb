@@ -108,6 +108,7 @@ def test_create_new_file_formats_projected_gameday_as_iso_date() -> None:
             "qbelo_prob2": [0.39],
             "qbelo1_post": [pd.NA],
             "qbelo2_post": [pd.NA],
+            "starter_certainty": [pd.NA],
             "location": ["Home"],
             "game_type": ["REG"],
         }

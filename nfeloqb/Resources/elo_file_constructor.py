@@ -191,6 +191,8 @@ class EloConstructor:
             on=["game_id", "away_team"],
             how="left",
         )
+        # keep the column so merge_new_and_next does not drop it from next_games
+        self.new_games["starter_certainty"] = numpy.nan
 
     def get_next_games(self):
         """Select the next scheduled week of unplayed games."""
@@ -251,6 +253,9 @@ class EloConstructor:
                 "qb_id": row["player_id"],
                 "qb_name": row["player_display_name"],
                 "draft_number": row["draft_number"],
+                "starter_certainty": (
+                    row["starter_certainty"] if "starter_certainty" in row.index else numpy.nan
+                ),
             }
 
         def apply_starters_and_team_values(row, starter_dict):
@@ -305,6 +310,16 @@ class EloConstructor:
             row["qb2_adj"] = aqb_value - ateam_obj.off_value
             row["qb2_game_value"] = numpy.nan
             row["qb2_value_post"] = numpy.nan
+
+            # game certainty is the less certain of the two listed starters
+            # if either is missing (no starter row, or no certainty on it), the game value is
+            # missing
+            home_certainty = (hstarter or {}).get("starter_certainty", numpy.nan)
+            away_certainty = (astarter or {}).get("starter_certainty", numpy.nan)
+            if pd.isnull(home_certainty) or pd.isnull(away_certainty):
+                row["starter_certainty"] = numpy.nan
+            else:
+                row["starter_certainty"] = min(home_certainty, away_certainty)
 
             # also persist the mapped team codes for downstream elo calc consistency
             row["home_team"] = hteam
@@ -480,6 +495,7 @@ class EloConstructor:
         new_row["qbelo_prob2"] = row["qbelo_prob2"]
         new_row["qbelo1_post"] = row["qbelo1_post"]
         new_row["qbelo2_post"] = row["qbelo2_post"]
+        new_row["starter_certainty"] = row["starter_certainty"]
         # netural locs
         if row["location"] == "Home":
             new_row["neutral"] = 0
@@ -510,6 +526,10 @@ class EloConstructor:
             # create new df and concat
             self.new_file = pd.concat([self.original_elo_file, pd.DataFrame(self.new_file_data)])
             self.new_file = self.new_file.reset_index(drop=True)
+            # original file rows are all played games and will not have the field
+            if "starter_certainty" not in self.new_file.columns:
+                self.new_file["starter_certainty"] = numpy.nan
+            self.new_file.loc[~pd.isnull(self.new_file["score1"]), "starter_certainty"] = 1
 
     def add_game_id_and_week(self):
         """Add game IDs and weeks for easier downstream joins."""

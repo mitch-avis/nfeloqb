@@ -864,6 +864,7 @@ class AirtableWrapper:
                 "player_display_name",
                 "draft_number",
                 "last_updated",
+                "starter_certainty",
             ]:
                 if field not in record["fields"]:
                     record["fields"][field] = numpy.nan
@@ -874,6 +875,7 @@ class AirtableWrapper:
                     "player_display_name": record["fields"]["player_display_name"],
                     "draft_number": record["fields"]["draft_number"],
                     "last_updated": record["fields"]["last_updated"],
+                    "starter_certainty": record["fields"]["starter_certainty"],
                 }
             )
         # write
