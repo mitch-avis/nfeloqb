@@ -595,11 +595,11 @@ class EloConstructor:
         ]
         for swap in swaps:
             # find record and get index
-            row_indices = new_file.index[
+            row_indices = new_file.loc[
                 (new_file["date"] == swap[0])
                 & (new_file["team1"] == swap[1])
                 & (new_file["team2"] == swap[2])
-            ].tolist()
+            ].index.tolist()
             if len(row_indices) == 1:
                 # need to swap all '1' values for '2' values and visa versa
                 for field in [

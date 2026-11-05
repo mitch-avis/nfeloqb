@@ -21,7 +21,7 @@ BACKUP = ("00-0000002", "Backup QB", 250.0)
 RIVAL = ("00-0000003", "Rival QB", 10.0)
 
 
-def _run_one_game(home_qb_adj: float, away_qb_adj: float, result: float | None) -> pd.Series:
+def _run_one_game(home_qb_adj: float, away_qb_adj: float, result: float | None) -> dict[str, Any]:
     """Run the Elo model on one neutral-site game between two new teams.
 
     The model seeds ratings only for teams with a home game, so an unplayed return game
@@ -50,7 +50,7 @@ def _run_one_game(home_qb_adj: float, away_qb_adj: float, result: float | None) 
     elo = Elo(games, qbs)
     elo.run()
     assert elo.elo_df is not None
-    return elo.elo_df.iloc[0]
+    return elo.elo_df.iloc[0].to_dict()
 
 
 def _win_prob(elo_dif: float) -> float:
@@ -97,7 +97,7 @@ def test_qb_adjusted_ratings_exclude_the_game_qb_adjustment() -> None:
     assert record["qbelo1_post"] == pytest.approx(BASE + 20 * (1 - home_prob) * mov_mult)
 
 
-def _project(current_elos: dict[str, float], current_qbelos: dict[str, float]) -> pd.Series:
+def _project(current_elos: dict[str, float], current_qbelos: dict[str, float]) -> dict[str, Any]:
     """Project one upcoming LV-at-home game against the Rams (`LA`) from given ratings."""
     constructor = object.__new__(EloConstructor)
     constructor.new_games = None
@@ -124,7 +124,7 @@ def _project(current_elos: dict[str, float], current_qbelos: dict[str, float]) -
     )
     constructor.add_elo_to_new_and_next()
     assert constructor.next_games is not None
-    return constructor.next_games.iloc[0]
+    return constructor.next_games.iloc[0].to_dict()
 
 
 def test_projections_find_ratings_stored_under_legacy_team_codes() -> None:
@@ -162,7 +162,7 @@ def _project_game(
     starters: dict[str, tuple[str, str, float]],
     home_team: str,
     away_team: str,
-) -> pd.Series:
+) -> dict[str, Any]:
     """Attach the given starters and their QB adjustments to one upcoming 2030 game."""
     constructor = object.__new__(EloConstructor)
     constructor.qb_model = qb_model
@@ -190,10 +190,10 @@ def _project_game(
     )
     constructor.add_starters_and_team_values()
     assert constructor.next_games is not None
-    return constructor.next_games.iloc[0]
+    return constructor.next_games.iloc[0].to_dict()
 
 
-def _project_starters(qb_model: _FakeQBModel) -> pd.Series:
+def _project_starters(qb_model: _FakeQBModel) -> dict[str, Any]:
     """Attach starters and QB adjustments to one upcoming LV-at-home game against the Rams."""
     starters = {"LV": ("00-1", "Home QB", 1.0), "LA": ("00-2", "Away QB", 2.0)}
     return _project_game(qb_model, starters, home_team="LV", away_team="LA")
