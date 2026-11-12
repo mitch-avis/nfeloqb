@@ -1,3 +1,7 @@
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
 [project]
 name = "nfeloqb"
 version = "0.2.6"
@@ -5,67 +9,52 @@ description = "NFL game score and outcome prediction with a margin/total ML mode
 readme = "README.md"
 requires-python = ">=3.14"
 keywords = ["stats", "sports", "football", "machine learning"]
-authors = [{ name = "Mitch Avis", email = "mitchavis@gmail.com" }]
 license = { text = "MIT" }
-dependencies = [
-    "nfelodcm>=0.2",
-    "nflreadpy>=0.1",
-    "numpy>=2.5",
-    "pandas>=3.0",
-    "polars>=2.0",
-    "python-dotenv>=1.2",
-    "requests>=2.34",
-    "scipy>=1.18",
-]
 classifiers = [
     "Programming Language :: Python :: 3.14",
     "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
 ]
-
-[project.urls]
-Homepage = "https://github.com/mitch-avis/nfeloqb"
+dependencies = [
+    "nfelodcm>=0.3",
+    "nflreadpy>=0.1",
+    "numpy>=2.5",
+    "pandas>=3.1",
+    "polars>=2.1",
+    "python-dotenv>=1.2",
+    "requests>=2.34",
+    "scipy>=1.18",
+]
 
 [dependency-groups]
 dev = [
     "colorama>=0.4",
-    "pyright>=1.1",
-    "pytest>=9.1",
+    "pyright>=1.1.414",
+    "pytest>=9.2",
     "pytest-cov>=7.1",
     "pytest-html>=4.2",
     "pytest-metadata>=3.1",
     "pytest-sugar>=1.1",
     "pytest-xdist>=3.8",
-    "ruff>=0.16",
-    "ty>=0.0.85",
+    "ruff>=0.17",
+    "ty>=0.0.102",
 ]
 
-[build-system]
-requires = ["uv_build>=0.12"]
-build-backend = "uv_build"
-
 [tool.uv]
-default-groups = ["dev"]
-required-version = ">=0.12"
+required-version = ">=0.13"
 
 [tool.uv.build-backend]
 module-root = ""
 module-name = "nfeloqb"
 namespace = true
 
+# --------------------------------------------------------------------------------------------
+# Ruff: format + lint (strict)
+# --------------------------------------------------------------------------------------------
 [tool.ruff]
 line-length = 100
-target-version = "py314"
 src = ["."]
-extend-exclude = [
-    ".venv",
-    ".git",
-    "__pycache__",
-    ".pytest_cache",
-    ".mypy_cache",
-    "build",
-    "dist",
-]
+extend-exclude = ["build", "dist"]
 
 [tool.ruff.lint]
 select = [
@@ -84,9 +73,16 @@ select = [
     "PGH", # pygrep-hooks rules
 ]
 ignore = [
-    "D203", # Conflicts with D211 (no-blank-line-before-class)
-    "D213", # Conflicts with D212 (multi-line-summary-first-line)
+    "COM812", # Conflicts with `ruff format`, which owns trailing commas
+    "CPY001", # The license is declared once in pyproject.toml, not per file
 ]
+
+[tool.ruff.lint.isort]
+known-first-party = ["nfeloqb"]
+known-third-party = ["__main__"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "D"]                        # Use of assert is standard in pytest
@@ -101,22 +97,20 @@ ignore = [
 "nfeloqb/Resources/elo.py" = ["D"]
 "nfeloqb/feature_optimization.py" = ["D"]
 
-[tool.ruff.lint.isort]
-known-first-party = ["nfeloqb"]
-known-third-party = ["__main__"]
-
-[tool.ruff.format]
-docstring-code-format = true
-
+# --------------------------------------------------------------------------------------------
+# Type checking: ty and pyright (strict)
+# --------------------------------------------------------------------------------------------
 [tool.ty.environment]
 # Pin ty to the repo venv so local and CI checks resolve the same interpreter.
 python = ".venv"
-python-version = "3.14"
 
 [tool.ty.src]
 # Limit ty to the checked-in source roots we validate in CI.
 include = ["nfeloqb", "scripts", "tests"]
 
+# --------------------------------------------------------------------------------------------
+# Tests and coverage
+# --------------------------------------------------------------------------------------------
 [tool.pyright]
 pythonVersion = "3.14"
 # Keep pyright on the repo's stable standard-mode baseline, then promote the specific diagnostics we
@@ -152,16 +146,17 @@ reportUnknownParameterType = "none"
 reportUnknownLambdaType = "none"
 
 [tool.pytest.ini_options]
-minversion = "7.0"
+minversion = "9.0"
 testpaths = ["tests"]
+pythonpath = ["."]
+strict = true
 addopts = [
-    "-ra",                       # show extra summary for (s)kipped, (x)failed
+    "-ra",
     "--strict-markers",
     "--cov=nfeloqb",
     "--cov-report=term-missing",
 ]
-filterwarnings = ["ignore::DeprecationWarning"]
-pythonpath = ["."]
+filterwarnings = ["ignore::DeprecationWarning", "error"]
 
 [tool.coverage.run]
 branch = true
@@ -171,4 +166,4 @@ omit = ["config.py", "config-*.py", "*/config.py", "*/config-*.py"]
 [tool.coverage.report]
 show_missing = true
 skip_empty = true
-exclude_lines = ["pragma: no cover", "if __name__ == .__main__.:"]
+exclude_also = ["if __name__ == \"__main__\":", "if TYPE_CHECKING:"]
