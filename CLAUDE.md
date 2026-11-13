@@ -1,4 +1,4 @@
-# AGENTS.md for nfeloqb
+# CLAUDE.md for nfeloqb
 
 ## 0) Mission + Non-Negotiables
 
