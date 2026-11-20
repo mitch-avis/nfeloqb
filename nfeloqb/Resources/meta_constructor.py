@@ -87,39 +87,36 @@ class MetaConstructor:
                 )
             )
         ].copy()
-        # filter to essential fields based on drizzle schema requirements
-        qbs = _rename_columns(
-            qbs[
-                [
-                    "gsis_id",
-                    "display_name",
-                    "football_name",
-                    "first_name",
-                    "last_name",
-                    "short_name",
-                    "status",
-                    "birth_date",
-                    "college_name",
-                    "height",
-                    "weight",
-                    "entry_year",
-                    "rookie_year",
-                    "draft_number",
-                    "draft_round",
-                    "draft_club",
-                    "headshot",
-                ]
-            ],
-            {
-                "college_name": "college",
-                "draft_club": "draft_team",
-                "headshot": "headshot_url",
-            },
-        )
-        # perform replacement on name
-        qbs["display_name"] = qbs["display_name"].replace(self.repl["fastr_repl"])
-        qbs = qbs.groupby(["gsis_id"]).head(1)
-        # return
+        ## filter to essential fields based on drizzle schema requirements ##
+        qbs = qbs[[
+            'gsis_id',
+            'display_name',
+            'football_name',
+            'first_name',
+            'last_name',
+            'short_name',
+            'status',
+            'team_abbr',
+            'birth_date', 
+            'college_name', 
+            'height',
+            'weight',
+            'entry_year',
+            'rookie_year',
+            'draft_number',
+            'draft_round',
+            'draft_club',
+            'headshot'
+        ]].rename(columns={
+            'college_name': 'college',
+            'draft_club': 'draft_team',
+            'headshot': 'headshot_url',
+            'team_abbr': 'latest_team',
+        }).copy()
+        ## perform replacement on name ##
+        qbs['display_name'] = qbs['display_name'].replace(self.repl['fastr_repl'])
+        qbs = qbs.groupby(['gsis_id']).head(1)
+        ## return ##
         return qbs
 
     def add_missing_draft_data(self, df):
